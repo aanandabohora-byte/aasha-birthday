@@ -1,3 +1,99 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const prizes = ['Aananda', 'iPhone Duo', '10,000', 'iPhone 18'];
+const spinMessages = [
+  'You won Aananda! Try again? 💗',
+  'Whoa, Aananda again! One last try! 🥹✨',
+  "It's destiny—you won Aananda! 💞"
+];
+
+function Confetti({ active }) {
+  if (!active) return null;
+  return <div className="confetti-layer" aria-hidden="true">{Array.from({length: 48}, (_,i)=><i key={i} style={{left:`${(i*37)%100}%`, animationDelay:`${(i%13)*.07}s`, '--hue':`${(i*47)%360}`, '--drift':`${((i%7)-3)*22}px`}} />)}</div>;
+}
+function Cake({ candlesOut = false, cut = false }) {
+  return (
+    <div className={`cake-scene ${cut ? 'cake-is-cut' : ''}`} aria-label="Birthday cake">
+      <div className="cake-glow" />
+      <div className="candles">
+        {[0, 1, 2, 3, 4].map((n) => (
+          <div className="candle" key={n}>
+            {!candlesOut && <span className="flame" />}
+            {candlesOut && <span className="smoke" />}
+            <span className="wick" />
+          </div>
+        ))}
+      </div>
+      <div className="cake-top"><span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span></div>
+      <div className="cake-layer layer-one" />
+      <div className="cake-layer layer-two" />
+      <div className="cake-layer layer-three" />
+      {cut && <div className="cake-cut-wedge" aria-hidden="true" />}
+      <div className="cake-plate" />
+    </div>
+  );
+}
+function SpinWheel({ spins, spinning, rotation }) {
+  return <div className="wheel-wrap"><div className="pointer"/>
+    <motion.div className="wheel" animate={{rotate:rotation}} transition={{duration:spinning?4.2:0, ease:[.12,.75,.16,1]}}>
+      <div className="wheel-label label-a">Aananda 💗</div><div className="wheel-label label-b">iPhone Duo 📱</div><div className="wheel-label label-c">10,000 💰</div><div className="wheel-label label-d">iPhone 18 🎁</div><div className="wheel-center">♡</div>
+    </motion.div>
+  </div>
+}
+
+const BASE = import.meta.env.BASE_URL;
+const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpg`);
+function PhotoMarquee() {
+  const row = [...photoFiles, ...photoFiles];
+  return <div className="memory-wall" aria-label="A moving wall of memories">
+    <div className="memory-track track-one">{row.map((src, i) => <img key={`a-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}</div>
+    <div className="memory-track track-two">{[...row].reverse().map((src, i) => <img key={`b-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}</div>
+  </div>;
+}
+
+export default function BirthdayJourney() {
+  const [step,setStep]=useState(1); const [candlesOut,setCandlesOut]=useState(false); const [cakeCut,setCakeCut]=useState(false); const [celebrate,setCelebrate]=useState(false);
+  function burst(){setCelebrate(true);setTimeout(()=>setCelebrate(false),3800);}
+  const [spins,setSpins]=useState(0); const [spinning,setSpinning]=useState(false); const [rotation,setRotation]=useState(0); const [result,setResult]=useState(''); const [music,setMusic]=useState(true); const [soundStarted,setSoundStarted]=useState(false);
+  const voiceRef=useRef(null);
+  const backingRef=useRef(null);
+  function stopBacking() {
+    if (backingRef.current) {
+      try { clearInterval(backingRef.current.timer); backingRef.current.ctx.close(); } catch {}
+      backingRef.current = null;
+    }
+  }
+  function startBacking() {
+    if (backingRef.current || !music) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextClass();
+      const master = ctx.createGain(); master.gain.value = 0.12; master.connect(ctx.destination);
+      const chords = [
+        [261.63, 329.63, 392.00, 493.88],
+        [196.00, 246.94, 293.66, 392.00],
+        [220.00, 261.63, 329.63, 440.00],
+        [174.61, 220.00, 261.63, 349.23]
+      ];
+      let noteIndex = 0;
+      const playNote = () => {
+        const chord = chords[Math.floor(noteIndex / 4) % chords.length];
+        const frequency = chord[noteIndex % 4];
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = frequency;
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.035, now + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+        osc.connect(gain); gain.connect(master); osc.start(now); osc.stop(now + 0.75);
+        noteIndex = (noteIndex + 1) % 16;
+      };
+      playNote();
+      const timer = setInterval(playNote, 520);
+      backingRef.current = { ctx, timer };
+    } catch (error) { console.warn('Background music unavailable:', error); }
+  }
   useEffect(() => {
     if (!music) {
       if (voiceRef.current) voiceRef.current.pause();
