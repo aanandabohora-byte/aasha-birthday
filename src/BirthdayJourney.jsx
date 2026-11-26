@@ -391,4 +391,62 @@ const styles = `
 }
 
 
+/* Alignment and layering fix: photos stay in the perimeter, never over content */
+.birthday-app{
+  position:relative;
+  isolation:isolate;
+  padding:clamp(88px, 9vh, 112px) clamp(74px, 9vw, 118px) clamp(88px, 9vh, 112px);
+}
+.memory-wall{
+  position:fixed;
+  z-index:0 !important;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+}
+.memory-track{z-index:0;}
+.screen{
+  position:relative;
+  z-index:5 !important;
+  width:100%;
+  max-width:820px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.party-decor{
+  z-index:1 !important;
+}
+.music-toggle{z-index:30;}
+.cards-screen{
+  width:100%;
+  max-width:820px;
+  padding:0 12px 32px;
+}
+.card-grid{
+  margin-left:auto;
+  margin-right:auto;
+}
+.centerpiece-letter{
+  position:relative;
+  z-index:6;
+  margin-left:auto;
+  margin-right:auto;
+}
+@media(max-width:700px){
+  .birthday-app{
+    padding:82px 52px 88px;
+  }
+  .screen{
+    max-width:100%;
+  }
+  .cards-screen{padding:0 3px 24px;}
+  .party-decor{z-index:1 !important;opacity:.55;}
+}
+@media(max-width:420px){
+  .birthday-app{padding-left:44px;padding-right:44px;}
+  .card-grid{width:100%;gap:6px;}
+  .mystery-card{min-width:0;}
+}
+
+
 `;
