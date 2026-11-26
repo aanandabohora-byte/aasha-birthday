@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const prizes = ['Aananda', 'iPhone Duo', '10,000', 'iPhone 18'];
-const spinMessages = [
-  'You won Aananda! Try again? 💗',
-  'Whoa, Aananda again! One last try! 🥹✨',
-  "It's destiny—you won Aananda! 💞"
-];
+const prizeSegments = ['Aananda', 'iPhone Duo', '10,000', 'iPhone 18', 'iPhone Duo', '10,000', 'iPhone 18', 'iPhone Duo', '10,000', 'iPhone 18', 'Aananda'];
+const prizeColors = ['#f6a7ca','#ffd88f','#b8e6dc','#c6b3fa','#ffd88f','#b8e6dc','#c6b3fa','#ffd88f','#b8e6dc','#c6b3fa','#f6a7ca'];
+const segmentAngle = 360 / prizeSegments.length;
+const wheelGradient = `conic-gradient(${prizeSegments.map((_, i) => `${prizeColors[i]} ${i * segmentAngle}deg ${(i + 1) * segmentAngle}deg`).join(',')})`;
 
 function Confetti({ active }) {
   if (!active) return null;
@@ -34,15 +32,18 @@ function Cake({ candlesOut = false, cut = false }) {
     </div>
   );
 }
-function SpinWheel({ spins, spinning, rotation, startRotation }) {
-  const wheelAnimation = spinning
-    ? [startRotation, rotation - 105, rotation + 9, rotation]
-    : rotation;
+function SpinWheel({ spinning, rotation, startRotation }) {
+  const wheelAnimation = spinning ? [startRotation, rotation - 105, rotation + 9, rotation] : rotation;
   return <div className="wheel-wrap"><div className="pointer"/>
-    <motion.div className="wheel" animate={{rotate:wheelAnimation}} transition={spinning
+    <motion.div className="wheel" style={{background:wheelGradient}} animate={{rotate:wheelAnimation}} transition={spinning
       ? {duration:6.8, times:[0,0.80,0.94,1], ease:['easeIn','easeOut','easeInOut']}
       : {duration:0}} >
-      <div className="wheel-label label-a">Aananda 💗</div><div className="wheel-label label-b">iPhone Duo 📱</div><div className="wheel-label label-c">10,000 💰</div><div className="wheel-label label-d">iPhone 18 🎁</div><div className="wheel-center">♡</div>
+      {prizeSegments.map((prize, i) => {
+        const angle = i * segmentAngle + segmentAngle / 2;
+        return <div className={`wheel-label ${prize === 'Aananda' ? 'aananda-label' : ''}`} key={`${prize}-${i}`}
+          style={{transform:`translate(-50%,-50%) rotate(${angle}deg) translateY(-112px) rotate(-${angle}deg)`}}>{prize === '10,000' ? '10K 💰' : prize === 'Aananda' ? 'Aananda 💗' : prize === 'iPhone Duo' ? 'Duo 📱' : 'iPhone 18 🎁'}</div>;
+      })}
+      <div className="wheel-center">♡</div>
     </motion.div>
   </div>
 }
@@ -120,11 +121,23 @@ export default function BirthdayJourney() {
   }
   function cut(){if(cakeCut)return;setCakeCut(true);burst();setTimeout(()=>setStep(2),1300);}
   function showWheel(){setStep(3);setResult('');}
-  function spin(){if(spinning||spins>=3)return;const next=spins+1;setSpinStartRotation(rotation);setSpins(next);setSpinning(true);burst();
-    // Four equal sectors. Aananda occupies the first 90 degrees; center is 45 degrees.
-    // Land its center at the pointer (top), with multiple full turns and a little overshoot.
-    const current=rotation%360; const targetMod=315; const delta=(targetMod-current+360)%360; const finalRotation=rotation+360*(5+next)+delta;
-    setRotation(finalRotation); setTimeout(()=>{setSpinning(false);setResult(spinMessages[next-1]);},6900);
+  function spin(){
+    if(spinning||spins>=3)return;
+    const next=spins+1;
+    // First two spins may land on any of the nine non-Aananda spaces.
+    // The third and final spin is always guaranteed to land on Aananda.
+    const eligible = prizeSegments.map((name,index)=>({name,index})).filter(x=>x.name!=='Aananda');
+    const chosen = next===3
+      ? prizeSegments.map((name,index)=>({name,index})).filter(x=>x.name==='Aananda')[Math.floor(Math.random()*2)]
+      : eligible[Math.floor(Math.random()*eligible.length)];
+    const centerAngle = chosen.index * segmentAngle + segmentAngle / 2;
+    const targetMod = (360 - centerAngle) % 360;
+    const current = ((rotation % 360) + 360) % 360;
+    const delta = (targetMod - current + 360) % 360;
+    const finalRotation = rotation + 360*(5+next) + delta;
+    setSpinStartRotation(rotation);setSpins(next);setSpinning(true);burst();setRotation(finalRotation);
+    const winText = next===3 ? 'It was always going to be Aananda. Your heart knew it! 💗' : `You won ${chosen.name}! Maybe the next spin has another surprise… ✨`;
+    setTimeout(()=>{setSpinning(false);setResult(winText);},6900);
   }
   function reset(){setStep(1);setCandlesOut(false);setCakeCut(false);setCelebrate(false);setSpins(0);setRotation(0);setSpinStartRotation(0);setResult('');}
   return <main className="birthday-app">
@@ -142,7 +155,7 @@ export default function BirthdayJourney() {
         {candlesOut && <motion.div className="step-action" initial={{scale:.8,opacity:0}} animate={{scale:1,opacity:1}}><p className="sweet-note">Wish made? Keep it safe in your heart. ✨</p><button className="primary-btn" onClick={cut}>🔪 Cut the Cake</button></motion.div>}
       </motion.section>}
       {step===2 && <motion.section className="screen ride-invite" key="cake-cut" initial={{opacity:0,scale:.9}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><div className="cake-cut-scene"><Cake candlesOut={true} cut={true} /><motion.div className="knife" initial={{y:-100,rotate:-25}} animate={{y:10,rotate:18}} transition={{duration:1.1}}><span>🔪</span></motion.div><div className="sparkles">✨ ✦ ✧ ✨</div></div><h2>Sweetness shared is sweetness doubled. 💗</h2><p>Your birthday surprise is waiting…</p><button className="primary-btn glow-btn" onClick={showWheel}>🎁 Reveal My Surprise</button></motion.section>}
-      {step===3 && <motion.section className="screen wheel-screen" key="wheel" initial={{opacity:0,scale:.94}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><p className="eyebrow">The surprise you've been waiting for</p><h2>Spin for your birthday surprise! 🎁</h2><p className="chances">Chances Left: <strong>{3-spins}</strong></p><SpinWheel spins={spins} spinning={spinning} rotation={rotation} startRotation={spinStartRotation}/><button className="primary-btn spin-btn" onClick={spin} disabled={spinning||spins>=3}>{spinning?'✨ Spinning…':'🎡 Spin the Wheel'}</button>
+      {step===3 && <motion.section className="screen wheel-screen" key="wheel" initial={{opacity:0,scale:.94}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><p className="eyebrow">The surprise you've been waiting for</p><h2>Spin for your birthday surprise! 🎁</h2><p className="chances">Chances Left: <strong>{3-spins}</strong></p><SpinWheel spinning={spinning} rotation={rotation} startRotation={spinStartRotation}/><button className="primary-btn spin-btn" onClick={spin} disabled={spinning||spins>=3}>{spinning?'✨ Spinning…':'🎡 Spin the Wheel'}</button>
         <AnimatePresence>{result && <motion.div className="win-modal" initial={{opacity:0,scale:.85}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><div className="win-card"><div className="win-stars">✨💗✨</div><h3>{result}</h3>{spins===3?<><p>Some surprises are just meant to be. And some people are meant to be your favourite person, over and over again.</p><div className="final-letter"><h4>Happy Birthday, my love. 💌</h4><p>In every version of life, in every spin, and in every little adventure waiting ahead… I would still choose you. Here's to our story, to all the years behind us, and to every beautiful year yet to come. You will always be my favourite surprise. 🫂💗</p></div><button className="soft-btn" onClick={reset}>Celebrate Again ↻</button></>:<button className="primary-btn" onClick={()=>setResult('')}>Spin Again 💫</button>}</div></motion.div>}</AnimatePresence>
       </motion.section>}
     </AnimatePresence>
@@ -190,37 +203,36 @@ const styles = `
 .cake-cut-scene .cake-scene { transform: scale(.9); transform-origin: center top; }
 .cake-cut-scene .cake-slice { display: none; }
 .cake-cut-scene .knife { z-index: 8; }
-/* Fixed picture-frame rails: one full-height column on each side of the screen. */
-.memory-wall{position:fixed;z-index:3;inset:0;overflow:hidden;pointer-events:none;}
-.memory-track{position:fixed;top:0;bottom:auto;display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(82px,10vw,122px);height:max-content;animation:memoryDown 82s linear infinite;}
-.memory-track.track-one{left:8px;}
-.memory-track.track-two{right:8px;animation-name:memoryUp;animation-duration:91s;}
-.memory-track img{display:block;width:100%;height:clamp(92px,10vw,132px);object-fit:cover;border-radius:15px;border:5px solid #fff;background:#f6dce9;box-shadow:0 4px 0 #d995b6,0 8px 20px #9b527044;flex:none;}
-@keyframes memoryDown{from{transform:translateY(-50%)}to{transform:translateY(0)}}
-@keyframes memoryUp{from{transform:translateY(0)}to{transform:translateY(-50%)}}
-/* Keep the birthday content in a clear centre column between the photo frames. */
-.screen{width:calc(100vw - 300px);max-width:940px;}
+/* Big moving photo frames across the top and bottom, keeping the cake and wheel clear. */
+.memory-wall{position:fixed;z-index:1;inset:0;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;pointer-events:none;padding:8px 0;}
+.memory-track{position:relative;display:flex;flex-direction:row;align-items:center;gap:12px;width:max-content;height:auto;animation:photoRunLeft 95s linear infinite;}
+.memory-track.track-two{animation-name:photoRunRight;animation-duration:105s;}
+.memory-track img{display:block;width:clamp(105px,12vw,155px);height:clamp(82px,10vw,125px);object-fit:cover;border-radius:15px;border:5px solid #fff;background:#f6dce9;box-shadow:0 4px 0 #d995b6,0 8px 20px #9b527044;flex:none;}
+@keyframes photoRunLeft{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes photoRunRight{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+/* Keep the central birthday experience comfortably between the photo rows. */
+.birthday-app{padding-top:155px;padding-bottom:155px;}
+.screen{width:100%;max-width:940px;}
 .birthday-app audio{display:none}
+.wheel-label{position:absolute;left:50%;top:50%;width:72px;text-align:center;font-size:clamp(8px,1.05vw,11px);font-weight:900;line-height:1.1;color:#714260;text-shadow:0 1px #fff9;white-space:normal;}
+.aananda-label{font-size:10px;color:#8f285e;}
 @media(max-width:700px){
-  .memory-track{width:clamp(48px,13vw,58px);gap:8px;}
-  .memory-track.track-one{left:3px;}
-  .memory-track.track-two{right:3px;}
-  .memory-track img{height:clamp(62px,17vw,76px);border:3px solid #fff;border-radius:10px;}
-  .screen{width:calc(100vw - 124px);max-width:calc(100vw - 124px);min-height:calc(100vh - 80px);}
-  .screen h1{font-size:clamp(27px,7vw,42px);}
-  .screen h2{font-size:clamp(20px,5vw,29px);}
+  .memory-wall{padding:5px 0;}
+  .memory-track{gap:7px;}
+  .memory-track img{width:clamp(74px,19vw,105px);height:clamp(62px,16vw,88px);border:3px solid #fff;border-radius:10px;}
+  .birthday-app{padding:105px 12px 110px;}
+  .screen{width:100%;max-width:100%;min-height:calc(100vh - 215px);}
+  .screen h1{font-size:clamp(30px,8vw,46px);}
+  .screen h2{font-size:clamp(22px,6vw,32px);}
   .eyebrow{font-size:9px;letter-spacing:1.5px;}
   .subheading{font-size:14px;}
-  .cake-screen .cake-scene{width:100%;transform:scale(.62);transform-origin:top center;margin-top:0;margin-bottom:-105px;}
+  .cake-screen .cake-scene{width:min(440px,92vw);transform:scale(.78);transform-origin:top center;margin-top:0;margin-bottom:-55px;}
   .cake-cut-scene{width:100%;height:245px;}
-  .cake-cut-scene .cake-scene{transform:scale(.60);transform-origin:top center;width:100%;}
+  .cake-cut-scene .cake-scene{transform:scale(.68);transform-origin:top center;width:100%;}
   .knife{right:-2%;font-size:38px;}
-  .wheel-wrap{width:min(245px,calc(100vw - 150px));margin:12px auto 18px;}
-  .wheel-label{font-size:10px;}
-  .label-a{transform:translate(-50%,-50%) translate(43px,-43px) rotate(45deg)}
-  .label-b{transform:translate(-50%,-50%) translate(43px,43px) rotate(135deg)}
-  .label-c{transform:translate(-50%,-50%) translate(-43px,43px) rotate(225deg)}
-  .label-d{transform:translate(-50%,-50%) translate(-43px,-43px) rotate(315deg)}
+  .wheel-wrap{width:min(300px,78vw);margin:12px auto 18px;}
+  .wheel-label{width:54px;font-size:8px;}
+  .aananda-label{font-size:8px;}
   .wheel-center{width:42px;height:42px;font-size:21px;}
   .primary-btn,.soft-btn{font-size:13px;padding:12px 16px;}
   .win-card{padding:18px;max-height:88vh;overflow:auto;}
