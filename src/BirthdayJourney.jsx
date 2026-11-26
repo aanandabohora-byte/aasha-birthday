@@ -43,7 +43,7 @@ function SpinWheel({ spins, spinning, rotation }) {
 }
 
 const BASE = import.meta.env.BASE_URL;
-const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpg`);
+const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpeg`);
 function PhotoMarquee() {
   const row = [...photoFiles, ...photoFiles];
   return <div className="memory-wall" aria-label="A moving wall of memories">
