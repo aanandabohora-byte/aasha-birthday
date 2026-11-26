@@ -1,3 +1,163 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const YEARS = ['2005','2008','2012','2015','2018','2020','2022','2024','2026'];
+const prizes = ['Aananda', 'iPhone Duo', '10,000', 'iPhone 18'];
+const spinMessages = [
+  'You won Aananda! Try again? 💗',
+  'Whoa, Aananda again! One last try! 🥹✨',
+  "It's destiny—you won Aananda! 💞"
+];
+
+function Confetti({ active }) {
+  if (!active) return null;
+  return <div className="confetti-layer" aria-hidden="true">{Array.from({length: 48}, (_,i)=><i key={i} style={{left:`${(i*37)%100}%`, animationDelay:`${(i%13)*.07}s`, '--hue':`${(i*47)%360}`, '--drift':`${((i%7)-3)*22}px`}} />)}</div>;
+}
+function Cake({ candlesOut = false, cut = false }) {
+  return (
+    <div className={`cake-scene ${cut ? 'cake-is-cut' : ''}`} aria-label="Birthday cake">
+      <div className="cake-glow" />
+      <div className="candles">
+        {[0, 1, 2, 3, 4].map((n) => (
+          <div className="candle" key={n}>
+            {!candlesOut && <span className="flame" />}
+            {candlesOut && <span className="smoke" />}
+            <span className="wick" />
+          </div>
+        ))}
+      </div>
+      <div className="cake-top"><span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span></div>
+      <div className="cake-layer layer-one" />
+      <div className="cake-layer layer-two" />
+      <div className="cake-layer layer-three" />
+      {cut && <div className="cake-cut-wedge" aria-hidden="true" />}
+      <div className="cake-plate" />
+    </div>
+  );
+}
+function RoadRide() {
+  return (
+    <div className="ride-scene cinematic-ride romantic-timeline">
+      <div className="scene-sun" />
+      <div className="scene-cloud cloud-a" />
+      <div className="scene-cloud cloud-b" />
+      <div className="scene-cloud cloud-c" />
+      <div className="bird-flock">⌁　⌁　⌁</div>
+      <div className="floating-love">♡　✦　♡　✦　♡</div>
+      <div className="mountain mountain-far" />
+      <div className="mountain mountain-near" />
+      <div className="field field-back" />
+      <div className="field field-front" />
+      <div className="timeline-heading">
+        <span>♡ OUR STORY ♡</span>
+        <p>Every year, a new memory. Every memory, a reason to love you.</p>
+      </div>
+      <div className="timeline-track">
+        {YEARS.map((year, i) => (
+          <div className="timeline-marker" key={year} style={{ '--index': i }}>
+            <span className="timeline-year">{year}</span>
+            <span className="timeline-stem" />
+            <span className="timeline-flower">✿</span>
+          </div>
+        ))}
+      </div>
+      <div className="timeline-heart">♥</div>
+      <div className="timeline-bottom"><span>2005</span><span>2026</span></div>
+      <div className="timeline-message">
+        <span>And our story is still being written…</span><strong>∞</strong>
+      </div>
+    </div>
+  );
+}
+function SpinWheel({ spins, spinning, rotation }) {
+  return <div className="wheel-wrap"><div className="pointer"/>
+    <motion.div className="wheel" animate={{rotate:rotation}} transition={{duration:spinning?4.2:0, ease:[.12,.75,.16,1]}}>
+      <div className="wheel-label label-a">Aananda 💗</div><div className="wheel-label label-b">iPhone Duo 📱</div><div className="wheel-label label-c">10,000 💰</div><div className="wheel-label label-d">iPhone 18 🎁</div><div className="wheel-center">♡</div>
+    </motion.div>
+  </div>
+}
+
+export default function BirthdayJourney() {
+  const [step,setStep]=useState(1); const [candlesOut,setCandlesOut]=useState(false); const [cakeCut,setCakeCut]=useState(false); const [celebrate,setCelebrate]=useState(false);
+  function burst(){setCelebrate(true);setTimeout(()=>setCelebrate(false),3800);}
+  const [spins,setSpins]=useState(0); const [spinning,setSpinning]=useState(false); const [rotation,setRotation]=useState(0); const [result,setResult]=useState(''); const [music,setMusic]=useState(true); const [soundStarted,setSoundStarted]=useState(false);
+  const audioRef=useRef(null); const timerRef=useRef(null);
+  useEffect(()=>{ if(!music) { if(audioRef.current) audioRef.current.stop(); return; } if(soundStarted) startMusic(); return ()=>audioRef.current?.stop(); },[music,soundStarted]);
+  function startMusic() {
+    if (audioRef.current) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextClass();
+      let stopped = false;
+      let timer = null;
+      // Happy Birthday to You — familiar melody in the key of C.
+      const melody = [
+        [392.00, 0.34], [392.00, 0.34], [440.00, 0.68], [392.00, 0.68], [523.25, 0.68], [493.88, 1.05],
+        [392.00, 0.34], [392.00, 0.34], [440.00, 0.68], [392.00, 0.68], [587.33, 0.68], [523.25, 1.05],
+        [392.00, 0.34], [392.00, 0.34], [783.99, 0.68], [659.25, 0.68], [523.25, 0.68], [493.88, 0.68], [440.00, 1.0],
+        [698.46, 0.34], [698.46, 0.34], [659.25, 0.68], [523.25, 0.68], [587.33, 0.68], [523.25, 1.1]
+      ];
+      let index = 0;
+      const playNext = () => {
+        if (stopped) return;
+        const [frequency, duration] = melody[index];
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.075, ctx.currentTime + 0.035);
+        gain.gain.setValueAtTime(0.075, ctx.currentTime + Math.max(0.06, duration - 0.09));
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + duration + 0.02);
+        index = (index + 1) % melody.length;
+        timer = setTimeout(playNext, duration * 1000 + 70);
+      };
+      playNext();
+      audioRef.current = {
+        stop: () => {
+          stopped = true;
+          clearTimeout(timer);
+          ctx.close();
+          audioRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Audio could not start:', error);
+    }
+  }
+  const activateAudio=()=>{setSoundStarted(true);};
+  function blow(){if(candlesOut)return;activateAudio();setCandlesOut(true);burst();}
+  function cut(){if(cakeCut)return;setCakeCut(true);burst();setTimeout(()=>setStep(2),1300);}
+  function ride(){activateAudio();burst();setStep(3);}
+  function openGift(){setStep(4);setResult('');}
+  function spin(){if(spinning||spins>=3)return;activateAudio();const next=spins+1;setSpins(next);setSpinning(true);burst();
+    // Four equal sectors. Aananda occupies the first 90 degrees; center is 45 degrees.
+    // Land its center at the pointer (top), with multiple full turns and a little overshoot.
+    const current=rotation%360; const targetMod=315; const delta=(targetMod-current+360)%360; const finalRotation=rotation+360*(5+next)+delta;
+    setRotation(finalRotation); setTimeout(()=>{setSpinning(false);setResult(spinMessages[next-1]);},4300);
+  }
+  function reset(){setStep(1);setCandlesOut(false);setCakeCut(false);setCelebrate(false);setSpins(0);setRotation(0);setResult('');}
+  return <main className="birthday-app">
+    <style>{styles}</style>
+    <Confetti active={celebrate}/>
+    <button className="music-toggle" onClick={()=>setMusic(v=>!v)} aria-label="Toggle music">{music?'♫ Music On':'♫ Music Off'}</button>
+    <div className="ambient">✦　♡　✧　♡　✦</div>
+    <AnimatePresence mode="wait">
+      {step===1 && <motion.section className="screen cake-screen" key="cake" initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-20}}>
+        <p className="eyebrow">A little celebration just for you</p><h1>Happy Birthday! <span>🎂</span></h1><p className="subheading">Make a wish, birthday girl…</p>
+        <Cake candlesOut={candlesOut} />
+        {!candlesOut && <button className="primary-btn" onClick={blow}>💨 Blow Candles</button>}
+        {candlesOut && <motion.div className="step-action" initial={{scale:.8,opacity:0}} animate={{scale:1,opacity:1}}><p className="sweet-note">Wish made? Keep it safe in your heart. ✨</p><button className="primary-btn" onClick={cut}>🔪 Cut the Cake</button></motion.div>}
+      </motion.section>}
+      {step===2 && <motion.section className="screen ride-invite" key="invite" initial={{opacity:0,scale:.9}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><div className="cake-cut-scene"><Cake candlesOut={true} cut={true} /><motion.div className="knife" initial={{y:-100,rotate:-25}} animate={{y:10,rotate:18}} transition={{duration:1.1}}><span>🔪</span></motion.div><motion.div className="cake-slice" initial={{x:0}} animate={{x:42,rotate:8}} transition={{delay:.5,duration:1.1}}>🍰</motion.div><div className="sparkles">✨ ✦ ✧ ✨</div></div><h2>Sweetness shared is sweetness doubled. 💗</h2><p>Now, let’s take a little journey through our story.</p><button className="primary-btn glow-btn" onClick={ride}>💗 Take Me Through Our Story</button></motion.section>}
+      {step===3 && <motion.section className="screen journey-screen" key="journey" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><p className="eyebrow">A little journey through time</p><h2>From 2005 to 2026, with love… <span>♡</span></h2><p className="subheading">A little time-travel through the years, toward all the tomorrows waiting for us. ♡</p><RoadRide/><motion.div className="gift-prompt" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:2.1}}><motion.button className="gift-btn" animate={{y:[0,-8,0],rotate:[0,-2,2,0]}} transition={{repeat:Infinity,duration:1.4}} onClick={openGift}>🎁</motion.button><p>Tap to Open Surprise</p></motion.div></motion.section>}
+      {step===4 && <motion.section className="screen wheel-screen" key="wheel" initial={{opacity:0,scale:.94}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><p className="eyebrow">The surprise you've been waiting for</p><h2>Spin for your birthday surprise! 🎁</h2><p className="chances">Chances Left: <strong>{3-spins}</strong></p><SpinWheel spins={spins} spinning={spinning} rotation={rotation}/><button className="primary-btn spin-btn" onClick={spin} disabled={spinning||spins>=3}>{spinning?'✨ Spinning…':'🎡 Spin the Wheel'}</button>
+        <AnimatePresence>{result && <motion.div className="win-modal" initial={{opacity:0,scale:.85}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><div className="win-card"><div className="win-stars">✨💗✨</div><h3>{result}</h3>{spins===3?<><p>Some surprises are just meant to be. And some people are meant to be your favourite person, over and over again.</p><div className="final-letter"><h4>Happy Birthday, my love. 💌</h4><p>In every version of life, in every spin, and in every little adventure waiting ahead… I would still choose you. Here's to our story, to all the years behind us, and to every beautiful year yet to come. You will always be my favourite surprise. 🫂💗</p></div><button className="soft-btn" onClick={reset}>Replay our little journey ↻</button></>:<button className="primary-btn" onClick={()=>setResult('')}>Spin Again 💫</button>}</div></motion.div>}</AnimatePresence>
+      </motion.section>}
     </AnimatePresence>
     <footer>Made with love, one little moment at a time ♡</footer>
   </main>
