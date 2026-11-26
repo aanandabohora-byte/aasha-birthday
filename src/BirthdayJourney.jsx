@@ -65,17 +65,44 @@ const BASE = import.meta.env.BASE_URL;
 const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpeg`);
 
 function PhotoMarquee() {
-  const row = [...photoFiles, ...photoFiles];
-  return <div className="memory-wall" aria-label="Two changing photo memories on each side">
-    <div className="photo-side photo-side-left">
-      <div className="side-photo-track">
-        {row.map((src, i) => <img key={`left-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPhotoIndex((current) => (current + 1) % photoFiles.length);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const topRow = [...photoFiles, ...photoFiles];
+
+  return <div className="memory-wall" aria-label="Birthday photo memories">
+    <div className="top-photo-rail">
+      <div className="top-photo-track">
+        {topRow.map((src, i) => <img key={`top-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}
       </div>
     </div>
+
+    <div className="photo-side photo-side-left">
+      <motion.img
+        key={`left-${photoIndex}`}
+        src={photoFiles[photoIndex]}
+        alt="Aasha memory"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.35 }}
+      />
+    </div>
+
     <div className="photo-side photo-side-right">
-      <div className="side-photo-track reverse-side-track">
-        {[...row].reverse().map((src, i) => <img key={`right-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}
-      </div>
+      <motion.img
+        key={`right-${(photoIndex + 10) % photoFiles.length}`}
+        src={photoFiles[(photoIndex + 10) % photoFiles.length]}
+        alt="Aasha memory"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.35 }}
+      />
     </div>
   </div>;
 }
@@ -687,6 +714,104 @@ const styles = `
   .photo-side-left{left:3px;}
   .photo-side-right{right:3px;}
   .side-photo-track img{width:38px;height:48px;}
+}
+
+
+/* Photo frame update: scrolling photo strip at top + one large rotating photo per side */
+.birthday-app{
+  padding:92px 150px 42px !important;
+  overflow-x:hidden;
+}
+.memory-wall{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:0 !important;
+  pointer-events:none;
+}
+.top-photo-rail{
+  position:fixed;
+  z-index:1;
+  top:0;
+  left:0;
+  right:0;
+  height:72px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  padding:6px 0;
+  background:linear-gradient(180deg,rgba(255,248,252,.96),rgba(255,238,247,.72));
+  border-bottom:1px solid rgba(225,157,190,.25);
+}
+.top-photo-track{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:max-content;
+  animation:topPhotoDrift 95s linear infinite;
+}
+.top-photo-track img{
+  width:68px;
+  height:54px;
+  flex:none;
+  object-fit:cover;
+  border:3px solid white;
+  border-radius:10px;
+  box-shadow:0 3px 10px rgba(120,55,90,.13);
+}
+@keyframes topPhotoDrift{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+.photo-side{
+  position:fixed !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  width:116px !important;
+  height:158px !important;
+  padding:5px !important;
+  overflow:hidden !important;
+  border-radius:16px !important;
+  background:rgba(255,248,252,.9) !important;
+  border:1px solid rgba(231,171,199,.65);
+  box-shadow:0 8px 24px rgba(143,67,105,.13) !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.photo-side-left{left:14px !important;right:auto !important;}
+.photo-side-right{right:14px !important;left:auto !important;}
+.photo-side img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border:3px solid #fff;
+  border-radius:11px;
+}
+.screen{
+  position:relative;
+  z-index:2;
+}
+.music-toggle{z-index:10;}
+.confetti-layer{z-index:12;}
+@media(max-width:850px){
+  .birthday-app{padding:88px 104px 34px !important;}
+  .photo-side{width:78px !important;height:116px !important;padding:3px !important;}
+  .photo-side-left{left:7px !important;}
+  .photo-side-right{right:7px !important;}
+  .top-photo-rail{height:62px;}
+  .top-photo-track img{width:54px;height:44px;}
+}
+@media(max-width:560px){
+  .birthday-app{padding:82px 66px 30px !important;}
+  .photo-side{width:54px !important;height:86px !important;padding:2px !important;border-radius:10px !important;}
+  .photo-side-left{left:4px !important;}
+  .photo-side-right{right:4px !important;}
+  .photo-side img{border-width:2px;border-radius:7px;}
+  .top-photo-rail{height:54px;}
+  .top-photo-track{gap:6px;}
+  .top-photo-track img{width:44px;height:36px;border-width:2px;border-radius:7px;}
+  .music-toggle{top:58px !important;right:7px !important;}
 }
 
 
