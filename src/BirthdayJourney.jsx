@@ -68,12 +68,11 @@ function PhotoMarquee() {
 
   const row = [...photoFiles, ...photoFiles];
 
-  return <div className="memory-wall" aria-label="A moving wall of memories">
-
-    <div className="memory-track track-one">{row.map((src, i) => <img key={`a-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}</div>
-
-    <div className="memory-track track-two">{[...row].reverse().map((src, i) => <img key={`b-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}</div>
-
+  return <div className="memory-wall" aria-label="A gently moving photo border">
+    <div className="memory-track edge-top">{row.map((src, i) => <img key={`top-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
+    <div className="memory-track edge-bottom">{[...row].reverse().map((src, i) => <img key={`bottom-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
+    <div className="memory-track edge-left">{row.map((src, i) => <img key={`left-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
+    <div className="memory-track edge-right">{[...row].reverse().map((src, i) => <img key={`right-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
   </div>;
 
 }
@@ -230,6 +229,10 @@ export default function BirthdayJourney() {
     <audio ref={voiceRef} src={`${BASE}audio/aasha-voice.mp3`} preload="auto" />
 
     <PhotoMarquee />
+    <div className="party-decor decor-cake" aria-hidden="true">🎂</div>
+    <div className="party-decor decor-balloons" aria-hidden="true">🎈🎈</div>
+    <div className="party-decor decor-gift" aria-hidden="true">🎁</div>
+    <div className="party-decor decor-sparkles" aria-hidden="true">✨ ♡ ✨</div>
 
     <button className="music-toggle" onClick={()=>setMusic(v=>!v)} aria-label="Toggle music">{music?'♫ Music On':'♫ Music Off'}</button>
 
@@ -275,7 +278,7 @@ export default function BirthdayJourney() {
           <h3>{spins===3 ? 'Every card leads to Aananda! 💗' : 'You found Aananda! 💗'}</h3>
           <p>{result}</p>
         </motion.div>}
-        {spins===3 && <div className="final-letter"><h4>Happy Birthday, my love. 💌</h4><p>In every version of life, in every little surprise, I would still choose you. Three chances, three times, one favourite person — Aananda. Here's to our story and every beautiful year ahead. 🫂💗</p><button className="soft-btn" onClick={reset}>Celebrate Again ↻</button></div>}
+        {spins===3 && <motion.div className="final-letter centerpiece-letter" initial={{opacity:0,y:18,scale:.96}} animate={{opacity:1,y:0,scale:1}}><div className="letter-flourish">♡ ✦ ♡</div><h4>A little promise, forever 💌</h4><p>Just as you chose me all three times, I will choose you forever, my love. Thanks for choosing me. Happiest 21st birthday, love!</p><div className="letter-signoff">With all my love ♡</div><button className="soft-btn" onClick={reset}>Celebrate Again ↻</button></motion.div>}
       </motion.section>}
 
     </AnimatePresence>
@@ -340,6 +343,51 @@ const styles = `
   .card-number{top:7px;left:8px}
   .card-winner{font-size:11px}
   .card-hint{font-size:12px}
+}
+
+
+
+/* Four-sided, compact photo border */
+.memory-wall{position:fixed;z-index:1;inset:0;pointer-events:none;overflow:hidden;padding:0;}
+.memory-track{position:absolute;display:flex;gap:10px;width:max-content;height:max-content;align-items:center;}
+.memory-track img{display:block;flex:none;width:clamp(62px,7vw,92px);height:clamp(54px,6vw,76px);object-fit:cover;border:4px solid #fff;border-radius:11px;box-shadow:0 3px 0 #d995b6,0 5px 14px #9b527033;background:#f6dce9;}
+.edge-top{top:8px;left:0;animation:edgeTopRun 75s linear infinite;}
+.edge-bottom{bottom:8px;right:0;animation:edgeBottomRun 82s linear infinite;}
+.edge-left{left:8px;top:0;flex-direction:column;animation:edgeLeftRun 88s linear infinite;}
+.edge-right{right:8px;bottom:0;flex-direction:column;animation:edgeRightRun 92s linear infinite;}
+@keyframes edgeTopRun{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes edgeBottomRun{from{transform:translateX(0)}to{transform:translateX(50%)}}
+@keyframes edgeLeftRun{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+@keyframes edgeRightRun{from{transform:translateY(0)}to{transform:translateY(50%)}}
+.birthday-app{padding:105px 118px 105px;min-height:100vh;}
+.screen{max-width:760px;min-height:calc(100vh - 150px);}
+.party-decor{position:fixed;z-index:2;pointer-events:none;font-size:clamp(28px,4vw,48px);filter:drop-shadow(0 5px 8px #b95c8122);opacity:.9;}
+.decor-cake{left:8%;top:22%;}
+.decor-balloons{right:8%;top:22%;font-size:clamp(30px,4vw,48px);}
+.decor-gift{left:9%;bottom:20%;}
+.decor-sparkles{right:8%;bottom:20%;font-size:clamp(22px,3vw,36px);}
+.centerpiece-letter{width:min(100%,620px);margin:24px auto 10px;padding:clamp(20px,4vw,34px);background:linear-gradient(145deg,#fffdfd,#fff0f7);border:1px solid #edc2d7;border-radius:25px;box-shadow:0 18px 48px #9f527322, inset 0 0 0 6px #fff8fb;text-align:center;}
+.centerpiece-letter .letter-flourish{color:#d17aa4;font-size:23px;letter-spacing:8px;margin-bottom:10px;}
+.centerpiece-letter h4{font-family:'Playfair Display',serif;color:#a44778;font-size:clamp(20px,3vw,27px);margin:4px 0 15px;}
+.centerpiece-letter p{font-family:'Playfair Display',serif;font-size:clamp(18px,2.5vw,23px);line-height:1.65;color:#75435e;margin:0 auto 15px;}
+.centerpiece-letter .letter-signoff{font-size:14px;color:#bd7196;margin:10px 0 18px;font-style:italic;}
+.cards-screen{padding:0 18px 30px;}
+@media(max-width:700px){
+ .birthday-app{padding:92px 58px 95px;}
+ .memory-track img{width:clamp(46px,13vw,66px);height:clamp(42px,11vw,58px);border-width:3px;border-radius:8px;}
+ .edge-top{top:5px}.edge-bottom{bottom:5px}.edge-left{left:5px}.edge-right{right:5px}
+ .party-decor{font-size:25px;opacity:.72;}
+ .decor-cake{left:4%;top:18%}.decor-balloons{right:3%;top:18%}
+ .decor-gift{left:4%;bottom:17%}.decor-sparkles{right:3%;bottom:17%}
+ .screen{min-height:calc(100vh - 130px);}
+ .cards-screen{padding:0 4px 24px;}
+ .centerpiece-letter{padding:20px 16px;margin:18px auto;}
+ .centerpiece-letter p{font-size:18px;line-height:1.55;}
+}
+@media(max-width:420px){
+ .birthday-app{padding-left:48px;padding-right:48px;}
+ .memory-track img{width:43px;height:39px;}
+ .party-decor{font-size:21px;}
 }
 
 
