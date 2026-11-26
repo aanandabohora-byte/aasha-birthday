@@ -190,23 +190,23 @@ const styles = `
 .cake-cut-scene .cake-scene { transform: scale(.9); transform-origin: center top; }
 .cake-cut-scene .cake-slice { display: none; }
 .cake-cut-scene .knife { z-index: 8; }
-/* Two vertical photo rails keep the birthday action clear in the centre. */
-.memory-wall{position:fixed;z-index:1;inset:0;overflow:hidden;pointer-events:none;}
-.memory-track{position:absolute;top:0;display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(76px,10vw,124px);height:max-content;animation:memoryDown 82s linear infinite;}
-.memory-track.track-one{left:10px;}
-.memory-track.track-two{right:10px;animation-name:memoryUp;animation-duration:91s;}
-.memory-track img{display:block;width:100%;height:clamp(88px,10vw,132px);object-fit:cover;border-radius:15px;border:4px solid #fff;box-shadow:0 5px 18px #9b527022;flex:none;}
+/* Fixed picture-frame rails: one full-height column on each side of the screen. */
+.memory-wall{position:fixed;z-index:3;inset:0;overflow:hidden;pointer-events:none;}
+.memory-track{position:fixed;top:0;bottom:auto;display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(82px,10vw,122px);height:max-content;animation:memoryDown 82s linear infinite;}
+.memory-track.track-one{left:8px;}
+.memory-track.track-two{right:8px;animation-name:memoryUp;animation-duration:91s;}
+.memory-track img{display:block;width:100%;height:clamp(92px,10vw,132px);object-fit:cover;border-radius:15px;border:5px solid #fff;background:#f6dce9;box-shadow:0 4px 0 #d995b6,0 8px 20px #9b527044;flex:none;}
 @keyframes memoryDown{from{transform:translateY(-50%)}to{transform:translateY(0)}}
 @keyframes memoryUp{from{transform:translateY(0)}to{transform:translateY(-50%)}}
-/* Reserve a clear centre column so photos never sit over the cake or wheel. */
-.screen{max-width:min(940px,calc(100vw - 280px));}
+/* Keep the birthday content in a clear centre column between the photo frames. */
+.screen{width:calc(100vw - 300px);max-width:940px;}
 .birthday-app audio{display:none}
 @media(max-width:700px){
-  .memory-track{width:clamp(46px,14vw,62px);gap:8px;}
-  .memory-track.track-one{left:4px;}
-  .memory-track.track-two{right:4px;}
-  .memory-track img{height:clamp(58px,17vw,78px);border-width:2px;border-radius:9px;}
-  .screen{width:calc(100vw - 132px);max-width:calc(100vw - 132px);min-height:calc(100vh - 80px);}
+  .memory-track{width:clamp(48px,13vw,58px);gap:8px;}
+  .memory-track.track-one{left:3px;}
+  .memory-track.track-two{right:3px;}
+  .memory-track img{height:clamp(62px,17vw,76px);border:3px solid #fff;border-radius:10px;}
+  .screen{width:calc(100vw - 124px);max-width:calc(100vw - 124px);min-height:calc(100vh - 80px);}
   .screen h1{font-size:clamp(27px,7vw,42px);}
   .screen h2{font-size:clamp(20px,5vw,29px);}
   .eyebrow{font-size:9px;letter-spacing:1.5px;}
