@@ -65,18 +65,14 @@ const BASE = import.meta.env.BASE_URL;
 const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpeg`);
 
 function PhotoMarquee() {
-
   const row = [...photoFiles, ...photoFiles];
-
   return <div className="memory-wall" aria-label="A gently moving photo border">
-    <div className="memory-track edge-top">{row.map((src, i) => <img key={`top-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
-    <div className="memory-track edge-bottom">{[...row].reverse().map((src, i) => <img key={`bottom-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
-    <div className="memory-track edge-left">{row.map((src, i) => <img key={`left-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
-    <div className="memory-track edge-right">{[...row].reverse().map((src, i) => <img key={`right-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div>
+    <div className="photo-rail rail-top"><div className="memory-track horizontal-track">{row.map((src, i) => <img key={`top-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div></div>
+    <div className="photo-rail rail-bottom"><div className="memory-track horizontal-track reverse-track">{[...row].reverse().map((src, i) => <img key={`bottom-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div></div>
+    <div className="photo-rail rail-left"><div className="memory-track vertical-track">{row.map((src, i) => <img key={`left-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div></div>
+    <div className="photo-rail rail-right"><div className="memory-track vertical-track reverse-track">{[...row].reverse().map((src, i) => <img key={`right-${i}`} src={src} alt="Birthday memory" loading="lazy" />)}</div></div>
   </div>;
-
 }
-
 
 
 export default function BirthdayJourney() {
@@ -229,10 +225,6 @@ export default function BirthdayJourney() {
     <audio ref={voiceRef} src={`${BASE}audio/aasha-voice.mp3`} preload="auto" />
 
     <PhotoMarquee />
-    <div className="party-decor decor-cake" aria-hidden="true">🎂</div>
-    <div className="party-decor decor-balloons" aria-hidden="true">🎈🎈</div>
-    <div className="party-decor decor-gift" aria-hidden="true">🎁</div>
-    <div className="party-decor decor-sparkles" aria-hidden="true">✨ ♡ ✨</div>
 
     <button className="music-toggle" onClick={()=>setMusic(v=>!v)} aria-label="Toggle music">{music?'♫ Music On':'♫ Music Off'}</button>
 
@@ -446,6 +438,135 @@ const styles = `
   .birthday-app{padding-left:44px;padding-right:44px;}
   .card-grid{width:100%;gap:6px;}
   .mystery-card{min-width:0;}
+}
+
+
+/* Clean centered composition: photo thumbnails are clipped to four dedicated rails */
+.birthday-app{
+  box-sizing:border-box;
+  position:relative;
+  isolation:isolate;
+  min-height:100vh;
+  width:100%;
+  padding:86px 82px 86px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+.memory-wall{
+  position:fixed;
+  z-index:0;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+}
+.photo-rail{
+  position:absolute;
+  overflow:hidden;
+  display:block;
+  background:linear-gradient(180deg,rgba(255,247,251,.96),rgba(255,238,247,.92));
+}
+.rail-top,.rail-bottom{
+  left:0;right:0;height:68px;width:100%;
+  display:flex;align-items:center;
+  padding:5px 8px;
+}
+.rail-top{top:0;}
+.rail-bottom{bottom:0;}
+.rail-left,.rail-right{
+  top:72px;bottom:72px;width:66px;
+  display:flex;justify-content:center;
+  padding:6px 4px;
+}
+.rail-left{left:0;}
+.rail-right{right:0;}
+.memory-track{
+  display:flex;
+  flex:none;
+  gap:9px;
+  align-items:center;
+  width:max-content;
+  height:max-content;
+}
+.horizontal-track{animation:cleanPhotoRun 100s linear infinite;}
+.reverse-track{animation-direction:reverse;}
+.vertical-track{
+  flex-direction:column;
+  animation:cleanPhotoRunVertical 110s linear infinite;
+}
+.memory-track img{
+  display:block;
+  flex:none;
+  width:66px;height:54px;
+  object-fit:cover;
+  border:3px solid #fff;
+  border-radius:10px;
+  box-shadow:0 2px 8px rgba(137,65,99,.16);
+  background:#fff;
+}
+.rail-left .memory-track img,.rail-right .memory-track img{
+  width:54px;height:62px;
+}
+@keyframes cleanPhotoRun{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes cleanPhotoRunVertical{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+.screen{
+  position:relative;
+  z-index:2;
+  box-sizing:border-box;
+  width:min(100%,860px);
+  max-width:860px;
+  margin:0 auto;
+  min-height:0;
+  text-align:center;
+}
+.cake-screen,.cards-screen{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+.cake-screen .cake-scene{margin-left:auto;margin-right:auto;}
+.cake-screen h1,.cake-screen .eyebrow,.cake-screen .subheading,
+.cake-screen .primary-btn,.cake-screen .step-action,
+.cards-screen > *{margin-left:auto;margin-right:auto;}
+.cards-screen{width:min(100%,860px);padding:22px 20px 28px;}
+.card-grid{width:min(660px,100%);margin:14px auto 0;}
+.centerpiece-letter{
+  position:relative;
+  z-index:3;
+  width:min(100%,680px);
+  margin:18px auto;
+}
+.party-decor{display:none !important;}
+.ambient{
+  position:absolute;
+  top:8px;left:0;right:0;
+  z-index:1;
+  opacity:.14;
+  pointer-events:none;
+}
+.music-toggle{position:fixed;z-index:10;top:78px;right:14px;}
+.confetti-layer{z-index:8;}
+@media(max-width:700px){
+  .birthday-app{padding:82px 58px;}
+  .rail-top,.rail-bottom{height:58px;padding:4px;}
+  .rail-left,.rail-right{top:62px;bottom:62px;width:48px;padding:4px 2px;}
+  .memory-track{gap:6px;}
+  .memory-track img{width:54px;height:44px;border-width:2px;border-radius:8px;}
+  .rail-left .memory-track img,.rail-right .memory-track img{width:40px;height:50px;}
+  .music-toggle{top:64px;right:8px;padding:7px 10px;font-size:11px;}
+  .cards-screen{padding:14px 2px 20px;}
+  .card-grid{gap:7px;width:100%;}
+  .centerpiece-letter{padding:22px 16px;margin:12px auto;}
+}
+@media(max-width:420px){
+  .birthday-app{padding:72px 44px;}
+  .rail-top,.rail-bottom{height:52px;}
+  .rail-left,.rail-right{top:56px;bottom:56px;width:38px;}
+  .memory-track img{width:46px;height:38px;}
+  .rail-left .memory-track img,.rail-right .memory-track img{width:32px;height:42px;}
+  .music-toggle{top:58px;}
 }
 
 
