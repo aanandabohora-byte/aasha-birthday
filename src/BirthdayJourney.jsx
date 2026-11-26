@@ -110,7 +110,7 @@ export default function BirthdayJourney() {
 
     try {
 
-      const AudioContextClass = window\.AudioContext || window\.webkitAudioContext;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
       const ctx = new AudioContextClass();
 
