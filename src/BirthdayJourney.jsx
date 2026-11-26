@@ -1,958 +1,771 @@
-import React, { useEffect, useRef, useState } from 'react';
-
+import React, {
+  forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
+} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
-
-
-
-function Confetti({ active }) {
-
-  if (!active) return null;
-
-  return <div className="confetti-layer" aria-hidden="true">{Array.from({length: 48}, (_,i)=><i key={i} style={{left:`${(i*37)%100}%`, animationDelay:`${(i%13)*.07}s`, '--hue':`${(i*47)%360}`, '--drift':`${((i%7)-3)*22}px`}} />)}</div>;
-
-}
-
-function Cake({ candlesOut = false, cut = false }) {
-
-  return (
-
-    <div className={`cake-scene ${cut ? 'cake-is-cut' : ''}`} aria-label="Birthday cake">
-
-      <div className="cake-glow" />
-
-      <div className="candles">
-
-        {[0, 1, 2, 3, 4].map((n) => (
-
-          <div className="candle" key={n}>
-
-            {!candlesOut && <span className="flame" />}
-
-            {candlesOut && <span className="smoke" />}
-
-            <span className="wick" />
-
-          </div>
-
-        ))}
-
-      </div>
-
-      <div className="cake-top"><span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span></div>
-
-      <div className="cake-layer layer-one" />
-
-      <div className="cake-layer layer-two" />
-
-      <div className="cake-layer layer-three" />
-
-      {cut && <div className="cake-cut-wedge" aria-hidden="true" />}
-
-      <div className="cake-plate" />
-
-    </div>
-
-  );
-
-}
-
-
+/* ───────────────────────── 1. EDIT YOUR TEXT HERE ───────────────────────── */
+const CONFIG = {
+  herName: 'Aasha',
+  giftName: 'Aananda',
+  age: 21,
+  photoCount: 20,           // photos 1.jpeg … 20.jpeg inside /public/photos
+  voiceFile: 'audio/aasha-voice.mp3',
+  // Optional real song in /public/audio. If the file is missing, the soft synth tune plays instead.
+  musicFile: 'audio/birthday-music.mp3',
+  collageTitle: 'Twenty-one years of you 💗',
+  collageNote: 'Every one of these is my favourite. Happy birthday, love. ♡',
+  tease: 'Could it be 10,000 cash, an iPhone Duo, or Aananda? 💝',
+  reveals: [
+    'Not cash… something way better. Keep going! ✨',
+    'Not an iPhone either. Still Aananda. One more! 💗',
+    'Three for three. It was always going to be Aananda. 💗',
+  ],
+  letterTitle: 'A little promise, forever 💌',
+  letter:
+    'Just as you chose me all three times, I will choose you forever, my love. ' +
+    'Thanks for choosing me. Happiest 21st birthday, love!',
+  signoff: 'With all my love ♡',
+};
 
 const BASE = import.meta.env.BASE_URL;
+const photoFiles = Array.from(
+  { length: CONFIG.photoCount },
+  (_, i) => `${BASE}photos/${i + 1}.jpeg`,
+);
+const hideBroken = (e) => { e.currentTarget.style.visibility = 'hidden'; };
+const reduceMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const photoFiles = Array.from({ length: 20 }, (_, i) => `${BASE}photos/${i + 1}.jpeg`);
+/* ───────────────────────── 2. CANVAS CONFETTI (no DOM spam) ───────────────────────── */
+const COLORS = ['#ec83b7', '#c65e98', '#ffd1e6', '#ffc46b', '#fff3c4', '#9ad9c1', '#b7a4ff'];
 
-function PhotoMarquee() {
-  const [photoIndex, setPhotoIndex] = useState(0);
+const Confetti = forwardRef(function Confetti(_, ref) {
+  const canvasRef = useRef(null);
+  const parts = useRef([]);
+  const raf = useRef(0);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPhotoIndex((current) => (current + 1) % photoFiles.length);
-    }, 1000);
-    return () => clearInterval(timer);
+  const loop = useCallback(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, c.width, c.height);
+    const dpr = window.devicePixelRatio || 1;
+    parts.current = parts.current.filter((p) => p.y < c.height / dpr + 40 && p.life > 0);
+    parts.current.forEach((p) => {
+      p.vy += 0.22; p.vx *= 0.992; p.x += p.vx; p.y += p.vy;
+      p.rot += p.vr; p.life -= 1;
+      ctx.save();
+      ctx.translate(p.x * dpr, p.y * dpr);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.min(1, p.life / 40);
+      if (p.shape === 'heart') {
+        ctx.font = `${p.size * 2.2 * dpr}px serif`; ctx.fillText('♥', 0, 0);
+      } else if (p.shape === 'dot') {
+        ctx.beginPath(); ctx.arc(0, 0, p.size * 0.5 * dpr, 0, 7); ctx.fill();
+      } else {
+        ctx.fillRect(-p.size * dpr / 2, -p.size * dpr / 3, p.size * dpr, p.size * 0.6 * dpr);
+      }
+      ctx.restore();
+    });
+    raf.current = parts.current.length ? requestAnimationFrame(loop) : 0;
   }, []);
 
-  const topRow = [...photoFiles, ...photoFiles];
+  useEffect(() => {
+    const resize = () => {
+      const c = canvasRef.current; if (!c) return;
+      const dpr = window.devicePixelRatio || 1;
+      c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+    };
+    resize();
+    addEventListener('resize', resize);
+    return () => { removeEventListener('resize', resize); cancelAnimationFrame(raf.current); };
+  }, []);
 
-  return <div className="memory-wall" aria-label="Birthday photo memories">
-    <div className="top-photo-rail">
-      <div className="top-photo-track">
-        {topRow.map((src, i) => <img key={`top-${i}`} src={src} alt="Aasha memory" loading="lazy" />)}
-      </div>
-    </div>
+  useImperativeHandle(ref, () => ({
+    // two "party cannons" from the bottom corners + a soft shower from the top
+    fire(count = 90) {
+      if (reduceMotion()) return;
+      const W = innerWidth, H = innerHeight;
+      const mk = (x, y, vx, vy) => ({
+        x, y, vx, vy, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
+        size: 7 + Math.random() * 8, life: 140 + Math.random() * 80,
+        color: COLORS[(Math.random() * COLORS.length) | 0],
+        shape: ['rect', 'rect', 'dot', 'heart'][(Math.random() * 4) | 0],
+      });
+      for (let i = 0; i < count; i++) {
+        const left = i % 2 === 0;
+        parts.current.push(mk(
+          left ? 0 : W, H,
+          (left ? 1 : -1) * (3 + Math.random() * 7),
+          -(11 + Math.random() * 9),
+        ));
+      }
+      for (let i = 0; i < count / 3; i++) {
+        parts.current.push(mk(Math.random() * W, -20, (Math.random() - 0.5) * 2, 1 + Math.random() * 2));
+      }
+      if (!raf.current) raf.current = requestAnimationFrame(loop);
+    },
+  }), [loop]);
 
-    <div className="photo-side photo-side-left">
-      <motion.img
-        key={`left-${photoIndex}`}
-        src={photoFiles[photoIndex]}
-        alt="Aasha memory"
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35 }}
-      />
-    </div>
+  return <canvas ref={canvasRef} className="confetti-canvas" aria-hidden="true" />;
+});
 
-    <div className="photo-side photo-side-right">
-      <motion.img
-        key={`right-${(photoIndex + 10) % photoFiles.length}`}
-        src={photoFiles[(photoIndex + 10) % photoFiles.length]}
-        alt="Aasha memory"
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35 }}
-      />
-    </div>
-  </div>;
+/* ───────────────────────── 3. SMALL HELPERS ───────────────────────── */
+function useTypewriter(text, active, speed = 42) {
+  const [out, setOut] = useState('');
+  useEffect(() => {
+    if (!active) { setOut(''); return undefined; }
+    if (reduceMotion()) { setOut(text); return undefined; }
+    let i = 0;
+    const t = setInterval(() => {
+      i += 1; setOut(text.slice(0, i));
+      if (i >= text.length) clearInterval(t);
+    }, speed);
+    return () => clearInterval(t);
+  }, [text, active, speed]);
+  return out;
 }
 
+// Listens to the microphone; calls onBlow when a real "puff" is heard.
+async function listenForBlow(onBlow) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const buf = new Uint8Array(analyser.fftSize);
+  let loud = 0; let raf = 0;
+  const stop = () => {
+    cancelAnimationFrame(raf);
+    stream.getTracks().forEach((t) => t.stop());
+    ctx.close().catch(() => {});
+  };
+  const tick = () => {
+    analyser.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (const v of buf) { const d = (v - 128) / 128; sum += d * d; }
+    const rms = Math.sqrt(sum / buf.length);
+    loud = rms > 0.2 ? loud + 1 : Math.max(0, loud - 1);
+    if (loud > 12) { stop(); onBlow(); return; }
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+  return stop;
+}
 
-export default function BirthdayJourney() {
+/* ───────────────────────── 4. CAKE ───────────────────────── */
+function Cake({ candlesOut = false, cut = false }) {
+  return (
+    <div className={`cake-scene ${cut ? 'cake-is-cut' : ''}`} role="img" aria-label="Birthday cake">
+      <div className="cake-glow" />
+      <div className="candles">
+        {[0, 1, 2, 3, 4].map((n) => (
+          <div className={`candle ${candlesOut ? 'out' : ''}`} style={{ '--d': `${n * 0.14}s` }} key={n}>
+            <span className="flame" /><span className="smoke" /><span className="wick" />
+          </div>
+        ))}
+      </div>
+      <div className="cake-top"><span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span></div>
+      <div className="cake-layer layer-one" />
+      <div className="cake-layer layer-two" />
+      <div className="cake-layer layer-three" />
+      {cut && <><div className="cake-notch" /><div className="cake-wedge" /></>}
+      <div className="cake-plate" />
+    </div>
+  );
+}
 
-  const [step,setStep]=useState(1); const [candlesOut,setCandlesOut]=useState(false); const [cakeCut,setCakeCut]=useState(false); const [celebrate,setCelebrate]=useState(false);
+/* ───────────────────────── 5. PHOTO FRAME (top strip + two rotating polaroids) ───────────────────────── */
+function PhotoMarquee() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((c) => (c + 1) % photoFiles.length), 3200);
+    return () => clearInterval(t);
+  }, []);
+  const left = photoFiles[i];
+  const right = photoFiles[(i + 10) % photoFiles.length];
+  return (
+    <div className="memory-wall" aria-hidden="true">
+      <div className="top-photo-rail">
+        <div className="top-photo-track">
+          {[...photoFiles, ...photoFiles].map((src, k) => (
+            <img key={k} src={src} alt="" loading="lazy" onError={hideBroken} />
+          ))}
+        </div>
+      </div>
+      {[['left', left, -5], ['right', right, 5]].map(([side, src, tilt]) => (
+        <div key={side} className={`polaroid polaroid-${side}`} style={{ '--tilt': `${tilt}deg` }}>
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={src} src={src} alt="" onError={hideBroken}
+              initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }} transition={{ duration: 0.4 }}
+            />
+          </AnimatePresence>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  function burst(){setCelebrate(true);setTimeout(()=>setCelebrate(false),3800);}
-
-  const [spins,setSpins]=useState(0); const [selectedCards,setSelectedCards]=useState({}); const [result,setResult]=useState(''); const [music,setMusic]=useState(true); const [soundStarted,setSoundStarted]=useState(false);
-
-  const voiceRef=useRef(null);
-
-  const backingRef=useRef(null);
-
-  function stopBacking() {
-
-    if (backingRef.current) {
-
-      try { clearInterval(backingRef.current.timer); backingRef.current.ctx.close(); } catch {}
-
-      backingRef.current = null;
-
-    }
-
-  }
-
-  function startBacking() {
-
-    if (backingRef.current || !music) return;
-
-    try {
-
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-
-      const ctx = new AudioContextClass();
-
-      const master = ctx.createGain(); master.gain.value = 0.12; master.connect(ctx.destination);
-
-      const chords = [
-
-        [261.63, 329.63, 392.00, 493.88],
-
-        [196.00, 246.94, 293.66, 392.00],
-
-        [220.00, 261.63, 329.63, 440.00],
-
-        [174.61, 220.00, 261.63, 349.23]
-
-      ];
-
-      let noteIndex = 0;
-
-      const playNote = () => {
-
-        const chord = chords[Math.floor(noteIndex / 4) % chords.length];
-
-        const frequency = chord[noteIndex % 4];
-
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-
-        osc.type = 'sine'; osc.frequency.value = frequency;
-
-        const now = ctx.currentTime;
-
-        gain.gain.setValueAtTime(0.0001, now);
-
-        gain.gain.exponentialRampToValueAtTime(0.035, now + 0.06);
-
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
-
-        osc.connect(gain); gain.connect(master); osc.start(now); osc.stop(now + 0.75);
-
-        noteIndex = (noteIndex + 1) % 16;
-
-      };
-
-      playNote();
-
-      const timer = setInterval(playNote, 520);
-
-      backingRef.current = { ctx, timer };
-
-    } catch (error) { console.warn('Background music unavailable:', error); }
-
-  }
+/* ───────────────────────── 5b. FINALE: photos drop onto a pinboard one by one ───────────────────────── */
+function CollageFinale({ fire, onReplay, onVoice, voicePlaying }) {
+  const [shown, setShown] = useState(0);
+  const tilts = useMemo(() => photoFiles.map((_, i) => ((i * 53) % 13) - 6), []);
+  const done = shown >= photoFiles.length;
 
   useEffect(() => {
+    if (done) { fire(170); return undefined; }
+    const t = setTimeout(() => setShown((s) => s + 1), reduceMotion() ? 0 : 320);
+    return () => clearTimeout(t);
+  }, [shown, done, fire]);
 
-    if (!music) {
-
-      if (voiceRef.current) voiceRef.current.pause();
-
-      stopBacking();
-
-    } else if (soundStarted) {
-
-      if (voiceRef.current) voiceRef.current.play().catch(() => {});
-
-      startBacking();
-
-    }
-
-    return () => {};
-
-  }, [music]);
-
-  function blow(){
-
-    if(candlesOut)return;
-
-    setSoundStarted(true);
-
-    if (music) {
-
-      if (voiceRef.current) { voiceRef.current.currentTime = 0; voiceRef.current.play().catch(error => console.warn('Voice playback unavailable:', error)); }
-
-      startBacking();
-
-    }
-
-    setCandlesOut(true); burst();
-
-  }
-
-  function cut(){if(cakeCut)return;setCakeCut(true);burst();setTimeout(()=>setStep(2),1300);}
-
-  function showCards(){setStep(3);setResult('');}
-  function chooseCard(index){
-    if (selectedCards[index] || spins >= 3) return;
-    const usedImages = Object.values(selectedCards).map(item => item.image);
-    const availableImages = photoFiles.filter(src => !usedImages.includes(src));
-    const imagePool = availableImages.length ? availableImages : photoFiles;
-    const image = imagePool[Math.floor(Math.random() * imagePool.length)];
-    const next = spins + 1;
-    setSelectedCards(prev => ({...prev, [index]: {image, prize: 'Aananda'}}));
-    setSpins(next);
-    setResult(next === 3
-      ? 'Three chances, three surprises — and every time, it is Aananda. 💗'
-      : 'Surprise! You found Aananda. Choose another card if you still have a chance. ✨');
-    burst();
-  }
-  function reset(){setStep(1);setCandlesOut(false);setCakeCut(false);setCelebrate(false);setSpins(0);setSelectedCards({});setResult('');}
-
-  return <main className="birthday-app">
-
-    <style>{styles}</style>
-
-    <Confetti active={celebrate}/>
-
-    <audio ref={voiceRef} src={`${BASE}audio/aasha-voice.mp3`} preload="auto" />
-
-    <PhotoMarquee />
-
-    <button className="music-toggle" onClick={()=>setMusic(v=>!v)} aria-label="Toggle music">{music?'♫ Music On':'♫ Music Off'}</button>
-
-    <div className="ambient">✦　♡　✧　♡　✦</div>
-
-    <AnimatePresence mode="wait">
-
-      {step===1 && <motion.section className="screen cake-screen" key="cake" initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-20}}>
-
-        <p className="eyebrow">A little celebration just for you</p><h1>Happy Birthday! <span>🎂</span></h1><p className="subheading">Make a wish, birthday girl…</p>
-
-        <Cake candlesOut={candlesOut} />
-
-        {!candlesOut && <button className="primary-btn" onClick={blow}>💨 Blow Candles</button>}
-
-        {candlesOut && <motion.div className="step-action" initial={{scale:.8,opacity:0}} animate={{scale:1,opacity:1}}><p className="sweet-note">Wish made? Keep it safe in your heart. ✨</p><button className="primary-btn" onClick={cut}>🔪 Cut the Cake</button></motion.div>}
-
-      </motion.section>}
-
-      {step===2 && <motion.section className="screen ride-invite" key="cake-cut" initial={{opacity:0,scale:.9}} animate={{opacity:1,scale:1}} exit={{opacity:0}}><div className="cake-cut-scene"><Cake candlesOut={true} cut={true} /><motion.div className="knife" initial={{y:-100,rotate:-25}} animate={{y:10,rotate:18}} transition={{duration:1.1}}><span>🔪</span></motion.div><div className="sparkles">✨ ✦ ✧ ✨</div></div><h2>Sweetness shared is sweetness doubled. 💗</h2><p>Your birthday surprise is waiting…</p><button className="primary-btn glow-btn" onClick={showCards}>🎁 Reveal My Surprise</button></motion.section>}
-
-      {step===3 && <motion.section className="screen cards-screen" key="cards" initial={{opacity:0,scale:.94}} animate={{opacity:1,scale:1}} exit={{opacity:0}}>
-        <p className="eyebrow">A little mystery, just for you</p>
-        <h2>Pick a card for your surprise! 🎁</h2>
-        <p className="chances">Chances Left: <strong>{3-spins}</strong></p>
-        <p className="card-hint">Could it be 10,000 cash, an iPhone Duo, or Aananda? 💝</p>
-        <div className="card-grid">
-          {Array.from({length:9}, (_, index) => {
-            const chosen = selectedCards[index];
-            return <motion.button type="button" className={`mystery-card ${chosen ? 'is-flipped' : ''}`} key={index}
-              onClick={() => chooseCard(index)} disabled={!!chosen || spins>=3}
-              whileHover={!chosen && spins<3 ? {y:-5,scale:1.03} : {}}>
-              <span className="card-inner">
-                <span className="card-back"><span className="card-number">{index+1}</span><span className="card-heart">♡</span><span className="card-back-copy">Choose me</span></span>
-                <span className="card-front">
-                  {chosen && <><img src={chosen.image} alt="Aananda surprise" /><span className="card-winner">Aananda 💗</span></>}
-                </span>
-              </span>
-            </motion.button>;
-          })}
-        </div>
-        {result && <motion.div className="card-result" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}>
-          <h3>{spins===3 ? 'Every card leads to Aananda! 💗' : 'You found Aananda! 💗'}</h3>
-          <p>{result}</p>
-        </motion.div>}
-        {spins===3 && <motion.div className="final-letter centerpiece-letter" initial={{opacity:0,y:18,scale:.96}} animate={{opacity:1,y:0,scale:1}}><div className="letter-flourish">♡ ✦ ♡</div><h4>A little promise, forever 💌</h4><p>Just as you chose me all three times, I will choose you forever, my love. Thanks for choosing me. Happiest 21st birthday, love!</p><div className="letter-signoff">With all my love ♡</div><button className="soft-btn" onClick={reset}>Celebrate Again ↻</button></motion.div>}
-      </motion.section>}
-
-    </AnimatePresence>
-
-    <footer>Made with love, just for you ♡</footer>
-
-  </main>
-
+  return (
+    <>
+      <h2 className="finale-title">{CONFIG.collageTitle}</h2>
+      <div className="collage">
+        {photoFiles.map((src, i) => (
+          <motion.figure
+            key={src} className="collage-item"
+            initial={{ opacity: 0, y: -80, scale: 1.35, rotate: 0 }}
+            animate={i < shown
+              ? { opacity: 1, y: 0, scale: 1, rotate: tilts[i] }
+              : { opacity: 0, y: -80, scale: 1.35, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 180, damping: 16 }}>
+            <img src={src} alt="" onError={hideBroken} />
+          </motion.figure>
+        ))}
+      </div>
+      {done && (
+        <motion.div className="finale-end" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <p className="finale-note">{CONFIG.collageNote}</p>
+          <div className="btn-row">
+            <button type="button" className="primary-btn" onClick={onVoice}>
+              {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
+            </button>
+            <button type="button" className="soft-btn" onClick={onReplay}>Celebrate again ↻</button>
+          </div>
+        </motion.div>
+      )}
+    </>
+  );
 }
 
+/* ───────────────────────── 6. MAIN APP ───────────────────────── */
+export default function BirthdayJourney() {
+  const [step, setStep] = useState(0);            // 0 intro · 1 cake · 2 cut · 3 cards
+  const [phase, setPhase] = useState('closed');   // intro: closed → count
+  const [age, setAge] = useState(0);
+  const [wish, setWish] = useState('');
+  const [flownWish, setFlownWish] = useState('');
+  const [candlesOut, setCandlesOut] = useState(false);
+  const [cakeCut, setCakeCut] = useState(false);
+  const [mic, setMic] = useState('idle');         // idle | listening | denied
+  const [spins, setSpins] = useState(0);
+  const [selected, setSelected] = useState({});
+  const [opening, setOpening] = useState(null);
+  const [music, setMusic] = useState(true);
+  const [soundStarted, setSoundStarted] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
 
+  const confetti = useRef(null);
+  const voiceRef = useRef(null);
+  const musicRef = useRef(null);
+  const musicFileOk = useRef(true);
+  const backingRef = useRef(null);
+  const stopMicRef = useRef(null);
+  const fire = useCallback((n) => confetti.current?.fire(n), []);
 
+  /* ---- soft synth backing track (same melody as before, now cleaned up on unmount) ---- */
+  const stopBacking = useCallback(() => {
+    const b = backingRef.current;
+    if (!b) return;
+    if (b.file) musicRef.current?.pause();
+    else { try { clearInterval(b.timer); b.ctx.close(); } catch { /* ignore */ } }
+    backingRef.current = null;
+  }, []);
 
+  const startSynth = useCallback(() => {
+    if (backingRef.current) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC();
+      const master = ctx.createGain(); master.gain.value = 0.12; master.connect(ctx.destination);
+      const chords = [
+        [261.63, 329.63, 392.0, 493.88], [196.0, 246.94, 293.66, 392.0],
+        [220.0, 261.63, 329.63, 440.0], [174.61, 220.0, 261.63, 349.23],
+      ];
+      let n = 0;
+      const play = () => {
+        const f = chords[Math.floor(n / 4) % 4][n % 4];
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        const t = ctx.currentTime;
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.035, t + 0.06);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.72);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.75);
+        n = (n + 1) % 16;
+      };
+      play();
+      backingRef.current = { ctx, timer: setInterval(play, 520) };
+    } catch (err) { console.warn('Background music unavailable:', err); }
+  }, []);
 
+  // Prefer the real song; fall back to the synth tune if the file is missing or blocked.
+  const startBacking = useCallback(() => {
+    if (backingRef.current) return;
+    const a = musicRef.current;
+    if (a && musicFileOk.current) {
+      a.volume = 0.4;
+      backingRef.current = { file: true };
+      a.play().catch(() => {
+        backingRef.current = null; musicFileOk.current = false; startSynth();
+      });
+    } else {
+      startSynth();
+    }
+  }, [startSynth]);
+
+  useEffect(() => {
+    if (!music) { voiceRef.current?.pause(); stopBacking(); }
+    else if (soundStarted) { voiceRef.current?.play().catch(() => {}); startBacking(); }
+  }, [music, soundStarted, startBacking, stopBacking]);
+
+  useEffect(() => () => { stopBacking(); stopMicRef.current?.(); }, [stopBacking]);
+
+  /* ---- intro: open the letter, count up to her age ---- */
+  function openLetter() { setPhase('count'); fire(40); }
+  useEffect(() => {
+    if (phase !== 'count') return undefined;
+    let n = 0; let next;
+    const t = setInterval(() => {
+      n += 1; setAge(n);
+      if (n >= CONFIG.age) {
+        clearInterval(t); fire(130);
+        next = setTimeout(() => setStep(1), 1700);
+      }
+    }, 95);
+    return () => { clearInterval(t); clearTimeout(next); };
+  }, [phase]);
+
+  /* ---- candles ---- */
+  function blow() {
+    if (candlesOut) return;
+    stopMicRef.current?.(); stopMicRef.current = null; setMic('idle');
+    setFlownWish(wish.trim());
+    setCandlesOut(true); setSoundStarted(true); fire(110);
+    if (music && voiceRef.current) {
+      voiceRef.current.currentTime = 0;
+      voiceRef.current.play().catch(() => {});
+    }
+  }
+  async function blowWithMic() {
+    if (mic === 'listening') return;
+    try {
+      setMic('listening');
+      stopMicRef.current = await listenForBlow(blow);
+    } catch { setMic('denied'); }
+  }
+
+  function cutCake() {
+    if (cakeCut) return;
+    setCakeCut(true); fire(110);
+    setTimeout(() => setStep(2), 1500);
+  }
+
+  /* ---- mystery cards ---- */
+  function chooseCard(index) {
+    if (opening !== null || selected[index] || spins >= 3) return;
+    setOpening(index);
+    setTimeout(() => {
+      const used = Object.values(selected).map((s) => s.image);
+      const free = photoFiles.filter((s) => !used.includes(s));
+      const pool = free.length ? free : photoFiles;
+      const image = pool[(Math.random() * pool.length) | 0];
+      setSelected((p) => ({ ...p, [index]: { image } }));
+      setSpins((s) => s + 1);
+      setOpening(null);
+      fire(spins === 2 ? 150 : 60);
+    }, 700);
+  }
+
+  function reset() {
+    setStep(0); setPhase('closed'); setAge(0); setWish(''); setFlownWish('');
+    setCandlesOut(false); setCakeCut(false); setSpins(0); setSelected({}); setOpening(null);
+  }
+
+  function toggleVoice() {
+    const v = voiceRef.current;
+    if (!v) return;
+    if (!v.paused) { v.pause(); return; }
+    v.currentTime = 0;
+    v.play().catch(() => {});
+  }
+
+  const letter = useTypewriter(CONFIG.letter, spins === 3, 38);
+  const lastReveal = spins > 0 ? CONFIG.reveals[spins - 1] : '';
+
+  return (
+    <main className="birthday-app">
+      <style>{styles}</style>
+      <Confetti ref={confetti} />
+      <audio
+        ref={voiceRef} src={`${BASE}${CONFIG.voiceFile}`} preload="auto"
+        onPlay={() => { setVoicePlaying(true); if (musicRef.current) musicRef.current.volume = 0.12; }}
+        onPause={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
+        onEnded={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
+      />
+      <audio
+        ref={musicRef} src={`${BASE}${CONFIG.musicFile}`} loop preload="auto"
+        onError={() => { musicFileOk.current = false; }}
+      />
+      <PhotoMarquee />
+
+      <button
+        type="button" className="music-toggle" aria-pressed={music}
+        onClick={() => setMusic((v) => !v)}
+      >
+        {music ? '♫ Music on' : '♫ Music off'}
+      </button>
+
+      <AnimatePresence mode="wait">
+        {/* ── STEP 0 · A letter arrives ── */}
+        {step === 0 && (
+          <motion.section className="screen" key="intro"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+            {phase === 'closed' ? (
+              <>
+                <p className="eyebrow">Psst… {CONFIG.herName}</p>
+                <button type="button" className="envelope" onClick={openLetter} aria-label="Open your birthday letter">
+                  <span className="env-flap" /><span className="env-heart">💌</span>
+                </button>
+                <p className="subheading">Tap the letter. It's for you.</p>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">Today you turn</p>
+                <div className="age-count" aria-live="polite">{age}</div>
+                <h2>{age >= CONFIG.age ? 'Twenty-one! 🎉' : '\u00A0'}</h2>
+              </>
+            )}
+          </motion.section>
+        )}
+
+        {/* ── STEP 1 · Candles ── */}
+        {step === 1 && (
+          <motion.section className="screen" key="cake"
+            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+            <h1>Happy Birthday, {CONFIG.herName}! <span>🎂</span></h1>
+            <p className="subheading">
+              {candlesOut ? 'Wish made. Keep it safe in your heart. ✨' : 'Make a wish, birthday girl…'}
+            </p>
+
+            <div className="cake-wrap">
+              <Cake candlesOut={candlesOut} />
+              <AnimatePresence>
+                {candlesOut && flownWish && (
+                  <motion.p className="flown-wish"
+                    initial={{ opacity: 0, y: 0, scale: 0.9 }}
+                    animate={{ opacity: [0, 1, 1, 0], y: -190, scale: 1.05 }}
+                    transition={{ duration: 4.2, ease: 'easeOut' }}>
+                    ✦ {flownWish} ✦
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {!candlesOut ? (
+              <div className="stack">
+                <label className="wish-field">
+                  <span>Whisper your wish (it stays on your screen only)</span>
+                  <input value={wish} maxLength={60} onChange={(e) => setWish(e.target.value)}
+                    placeholder="I wish…" />
+                </label>
+                <button type="button" className="primary-btn" onClick={blow}>💨 Blow the candles</button>
+                <button type="button" className="text-btn" onClick={blowWithMic} disabled={mic === 'listening'}>
+                  {mic === 'listening' && '🎤 Listening… blow into your phone'}
+                  {mic === 'denied' && '🎤 Mic blocked. Tap the button above instead'}
+                  {mic === 'idle' && '🎤 Or blow for real into your microphone'}
+                </button>
+              </div>
+            ) : (
+              <motion.div className="stack" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                <button type="button" className="primary-btn" onClick={cutCake}>🍰 Cut the cake</button>
+              </motion.div>
+            )}
+          </motion.section>
+        )}
+
+        {/* ── STEP 2 · Cake cut ── */}
+        {step === 2 && (
+          <motion.section className="screen" key="cut"
+            initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+            <div className="cake-wrap"><Cake candlesOut cut /></div>
+            <h2>Sweetness shared is sweetness doubled. 💗</h2>
+            <p className="subheading">Your surprise is waiting…</p>
+            <button type="button" className="primary-btn glow-btn" onClick={() => setStep(3)}>
+              🎁 Reveal my surprise
+            </button>
+          </motion.section>
+        )}
+
+        {/* ── STEP 3 · Mystery cards ── */}
+        {step === 3 && (
+          <motion.section className="screen cards-screen" key="cards"
+            initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+            <h2>Pick a card for your surprise! 🎁</h2>
+            <p className="chances">Chances left: <strong>{3 - spins}</strong></p>
+            <p className="card-hint">{CONFIG.tease}</p>
+
+            <div className="card-grid">
+              {Array.from({ length: 9 }, (_, index) => {
+                const chosen = selected[index];
+                const isOpening = opening === index;
+                return (
+                  <button type="button" key={index}
+                    className={`mystery-card ${chosen ? 'is-flipped' : ''} ${isOpening ? 'is-opening' : ''}`}
+                    onClick={() => chooseCard(index)}
+                    disabled={!!chosen || spins >= 3 || opening !== null}
+                    aria-label={chosen ? `Card ${index + 1}: ${CONFIG.giftName}` : `Card ${index + 1}`}>
+                    <span className="card-inner">
+                      <span className="card-back">
+                        <span className="card-number">{index + 1}</span>
+                        <span className="card-heart">{isOpening ? '?' : '♡'}</span>
+                        <span className="card-back-copy">{isOpening ? 'Opening…' : 'Choose me'}</span>
+                      </span>
+                      <span className="card-front">
+                        {chosen && (
+                          <>
+                            <img src={chosen.image} alt="" onError={hideBroken} />
+                            <span className="card-winner">{CONFIG.giftName} 💗</span>
+                          </>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div aria-live="polite" className="result-slot">
+              {lastReveal && spins < 3 && (
+                <motion.div key={spins} className="card-result"
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                  <h3>You found {CONFIG.giftName}! 💗</h3>
+                  <p>{lastReveal}</p>
+                </motion.div>
+              )}
+            </div>
+
+            {spins === 3 && (
+              <motion.div className="letter" initial={{ opacity: 0, y: 18, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.6 }}>
+                <div className="letter-flourish">♡ ✦ ♡</div>
+                <h3>{CONFIG.letterTitle}</h3>
+                <p className="letter-body">{letter}<i className="caret" /></p>
+                {letter.length >= CONFIG.letter.length && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <div className="letter-signoff">{CONFIG.signoff}</div>
+                    <div className="btn-row">
+                      <button type="button" className="primary-btn" onClick={() => setStep(4)}>
+                        📸 See our memories
+                      </button>
+                      <button type="button" className="soft-btn" onClick={toggleVoice}>
+                        {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
+                      </button>
+                    </div>
+                    <button type="button" className="text-btn" onClick={reset}>Celebrate again ↻</button>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </motion.section>
+        )}
+
+        {/* ── STEP 4 · Memory collage finale ── */}
+        {step === 4 && (
+          <motion.section className="screen finale-screen" key="finale"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <CollageFinale fire={fire} onReplay={reset} onVoice={toggleVoice} voicePlaying={voicePlaying} />
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      <footer>Made with love, just for you ♡</footer>
+    </main>
+  );
+}
+
+/* ───────────────────────── 7. STYLES ───────────────────────── */
 const styles = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap');
 
-@import url('https\://fonts.googleapis.com/css2?family=DM+Sans:wght\@400;600;700&family=Playfair+Display:wght\@600;700&display=swap');
+:root{
+  --bg:#fff6fa; --ink:#60374c; --rose:#c65e98; --rose-soft:#ec83b7; --rose-deep:#7c365d;
+  --blush:#ffe3ef; --line:#f0c6da; --muted:#a76588;
+}
+*{box-sizing:border-box}
+html,body,#root{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;overflow-x:hidden}
+button{font-family:inherit}
+:focus-visible{outline:3px solid #7c365d;outline-offset:3px}
 
-*{box-sizing:border-box}body{margin:0;background:#fff8fb;color:#60374c;font-family:'DM Sans',sans-serif}.birthday-app{min-height:100vh;overflow:hidden;position:relative;background:radial-gradient(circle at 20% 10%,#fff 0,#fff4fa 42%,#ffeaf4 100%);padding:30px 18px 50px}.screen{max-width:940px;margin:0 auto;min-height:calc(100vh - 100px);display:flex;align-items:center;flex-direction:column;text-align:center;position:relative;z-index:2}.music-toggle{position:fixed;right:16px;top:14px;z-index:20;border:1px solid #f1c9dc;background:#fff9fc;color:#9d4774;padding:10px 14px;border-radius:999px;font-weight:700;box-shadow:0 6px 18px #d67ba21c;cursor:pointer}.eyebrow{text-transform:uppercase;letter-spacing:3px;font-size:12px;color:#c46a96;margin:34px 0 8px}.screen h1,.screen h2{font-family:'Playfair Display',serif;margin:0;color:#7c365d}.screen h1{font-size:clamp(38px,8vw,70px);line-height:1.08}.screen h1 span{display:inline-block;animation:bob 2s infinite}.screen h2{font-size:clamp(27px,5vw,43px);margin:10px 0}.subheading{color:#a76588;font-size:17px;margin:12px 0 20px}.primary-btn,.soft-btn{border:0;border-radius:999px;padding:15px 26px;font-weight:800;font-size:16px;cursor:pointer;transition:transform .2s,box-shadow .2s;background:linear-gradient(135deg,#ec83b7,#c65e98);color:white;box-shadow:0 9px 24px #ca679c42}.primary-btn:hover,.soft-btn:hover{transform:translateY(-2px);box-shadow:0 12px 25px #ca679c55}.primary-btn:disabled{opacity:.7;cursor:default}.cake-scene{height:290px;width:min(440px,92vw);position:relative;margin:28px auto 24px;filter:drop-shadow(0 16px 18px #b95c8126)}.cake-glow{position:absolute;width:270px;height:230px;left:50%;top:20px;transform:translateX(-50%);border-radius:50%;background:#ffc9e4;filter:blur(35px);opacity:.45}.cake-plate{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:330px;height:24px;border-radius:50%;background:linear-gradient(#fff,#e7b5ce);box-shadow:0 7px 0 #d796b7}.cake-layer{position:absolute;left:50%;transform:translateX(-50%);border-radius:18px 18px 23px 23px;box-shadow:inset 0 -10px 0 #00000008}.layer-one{width:240px;height:84px;bottom:42px;background:linear-gradient(90deg,#f4a9c9,#ffe2ef 48%,#ee9fc4)}.layer-two{width:190px;height:72px;bottom:122px;background:linear-gradient(90deg,#ffe1b9,#fff0d5 48%,#f4c89d);border-radius:17px 17px 18px 18px}.layer-three{width:142px;height:62px;bottom:185px;background:linear-gradient(90deg,#f6b7d1,#fff0f7 48%,#e9a4c4);border-radius:18px 18px 14px 14px}.cake-top{position:absolute;left:50%;transform:translateX(-50%);bottom:234px;width:142px;height:20px;border-radius:50%;background:#fff0f8;z-index:3}.sprinkles{font-size:10px;color:#d37aa5;position:absolute;top:2px;left:14px}.candles{position:absolute;bottom:245px;left:50%;transform:translateX(-50%);display:flex;gap:14px;z-index:5}.candle{height:42px;width:12px;background:repeating-linear-gradient(0deg,#fff6d8 0 8px,#ef9ec4 8px 12px);border-radius:4px;position:relative}.wick{position:absolute;width:2px;height:6px;background:#76505f;top:-5px;left:5px}.flame{position:absolute;width:12px;height:19px;left:0;top:-23px;background:radial-gradient(circle at 50% 60%,#fff8b5 0 20%,#ffb544 45%,#ff795d 72%);border-radius:60% 60% 60% 10%;transform:rotate(45deg);animation:flicker .6s infinite alternate}.cake-scene:has(.flame){animation:none}.cake-scene:has(.flame) .cake-glow{animation:pulse 1.5s infinite}.cake-scene:has(.flame) .flame{animation:flicker .45s infinite alternate}.cake-screen .cake-scene{margin-top:4px}.step-action{margin-top:5px}.sweet-note{color:#ba6790;font-weight:700}.cake-screen .primary-btn{min-width:210px}.ride-invite{justify-content:center}.cake-cut-scene{position:relative;margin:10px 0 8px;height:330px;width:min(460px,94vw)}.cake-cut-scene .cake-scene{transform:scale(.95);margin:0 auto}.knife{position:absolute;right:5%;top:50px;font-size:54px;filter:drop-shadow(2px 4px 3px #5552)}.cake-slice{position:absolute;right:9%;bottom:12%;font-size:50px}.sparkles{position:absolute;top:10%;left:10%;font-size:30px;animation:pulse 1s infinite}.ride-invite h2{font-size:clamp(23px,4vw,34px)}.ride-invite p{color:#a76587}.glow-btn{margin-top:18px;animation:glow 1.8s infinite alternate}.ride-scene{width:min(100%,1000px);height:430px;border-radius:30px;overflow:hidden;position:relative;margin:22px auto;background:linear-gradient(#bfe9ff 0%,#e9f8ff 62%,#c8efcf 62%,#a5d9a6 100%);box-shadow:0 14px 35px #77b0c82b}.sun{position:absolute;right:12%;top:34px;width:72px;height:72px;background:#ffebaa;border-radius:50%;box-shadow:0 0 38px #ffde7a}.cloud{position:absolute;color:#fff;font-size:72px;opacity:.8;animation:cloudmove 18s linear infinite}.cloud-a{top:50px;left:12%}.cloud-b{top:90px;left:65%;animation-duration:25s}.floating-love{position:absolute;top:18%;left:40%;color:#ff90bc;font-size:22px;animation:float 4s infinite}.ride-hills{position:absolute;bottom:130px;width:130%;height:180px;border-radius:50% 50% 0 0;left:-15%}.hill-back{background:#98d6ad;bottom:120px}.hill-front{background:#72c38c;bottom:70px;left:-4%;width:110%;height:160px}.road{position:absolute;bottom:0;width:100%;height:110px;background:#666a76;border-top:9px solid #a3a7b2}.road-dashes{position:absolute;top:48px;width:100%;height:7px;background:repeating-linear-gradient(90deg,#fff8dc 0 45px,transparent 45px 82px);animation:roadmove 1s linear infinite}.milestones{position:absolute;inset:0;z-index:5}.milestone{position:absolute;bottom:126px;display:flex;flex-direction:column;align-items:center;animation:signmove 12s linear infinite}.sign{background:#fff7df;border:3px solid #d89b6b;color:#855c3b;font-weight:900;padding:7px 12px;border-radius:10px;box-shadow:0 4px 5px #4d6a5c33}.post{width:8px;height:52px;background:#ad8156;border-radius:3px}.finish{position:absolute;right:3%;bottom:130px;z-index:7;background:#fff;color:#d56c9b;border:3px solid #d56c9b;padding:10px 14px;font-weight:900;border-radius:9px;line-height:1.2;box-shadow:0 0 20px #ffb6d6}.finish small{font-size:10px}.gift-prompt{margin-top:8px;color:#bd5688;font-weight:800}.gift-btn{border:0;background:transparent;font-size:76px;cursor:pointer;filter:drop-shadow(0 6px 10px #c47ba333)}.cards-screen{padding-bottom:28px}
-.chances{font-size:18px;color:#b45d88;margin:10px 0}
-.chances strong{display:inline-block;background:#fce0ed;padding:5px 13px;border-radius:20px;color:#9a376c}
-.card-hint{color:#a76588;margin:4px 0 18px;font-size:14px}
-.card-grid{width:min(660px,94vw);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(9px,2vw,17px);perspective:1000px}
-.mystery-card{appearance:none;border:0;padding:0;background:transparent;cursor:pointer;aspect-ratio:3/4;min-width:0;perspective:900px}
+.birthday-app{
+  position:relative;isolation:isolate;min-height:100dvh;width:100%;
+  padding:92px 160px 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 20% 10%,#fff 0,#fff4fa 42%,#ffeaf4 100%);overflow:hidden;
+}
+.screen{position:relative;z-index:2;width:min(100%,820px);min-height:calc(100dvh - 150px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.confetti-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:20}
+
+/* type */
+.screen h1,.screen h2,.letter h3,.card-result h3{font-family:'Playfair Display',serif;color:var(--rose-deep);margin:0}
+.screen h1{font-size:clamp(34px,7vw,64px);line-height:1.1}
+.screen h1 span{display:inline-block;animation:bob 2s infinite}
+.screen h2{font-size:clamp(24px,4.6vw,40px);margin:8px 0}
+.eyebrow{font-style:italic;font-family:'Playfair Display',serif;font-size:20px;color:#b9618c;margin:0 0 14px}
+.subheading{color:var(--muted);font-size:17px;margin:10px 0 18px}
+
+/* buttons */
+.primary-btn,.soft-btn{border:0;border-radius:999px;padding:15px 28px;font-weight:700;font-size:16px;cursor:pointer;
+  background:linear-gradient(135deg,var(--rose-soft),var(--rose));color:#fff;box-shadow:0 9px 24px #ca679c42;transition:transform .2s,box-shadow .2s}
+.primary-btn:hover,.soft-btn:hover{transform:translateY(-2px);box-shadow:0 12px 26px #ca679c58}
+.soft-btn{background:#f6d6e7;color:#8a3d66;box-shadow:none;margin-top:6px}
+.text-btn{background:none;border:0;color:#a0507d;font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:6px}
+.text-btn:disabled{text-decoration:none;cursor:default;opacity:.85}
+.glow-btn{margin-top:10px;animation:glow 1.8s infinite alternate}
+.stack{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(100%,380px)}
+.music-toggle{position:fixed;right:14px;top:80px;z-index:15;border:1px solid var(--line);background:#fff9fc;color:#9d4774;
+  padding:9px 14px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 6px 18px #d67ba21c}
+
+.wish-field{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;font-size:13px;color:var(--muted)}
+.wish-field input{border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit;font-size:16px;color:var(--ink);background:#fffafd}
+.wish-field input:focus{outline:none;border-color:var(--rose-soft);box-shadow:0 0 0 4px #ec83b733}
+
+/* intro */
+.envelope{position:relative;width:210px;height:146px;border:0;border-radius:14px;cursor:pointer;
+  background:linear-gradient(160deg,#f8bfd8,#e980b2);box-shadow:0 18px 36px #b95c8133;animation:wiggle 2.6s ease-in-out infinite}
+.env-flap{position:absolute;inset:0 0 auto 0;height:86px;background:#ee94bf;border-radius:14px 14px 0 0;
+  clip-path:polygon(0 0,100% 0,50% 100%)}
+.env-heart{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:44px;animation:bob 1.6s infinite}
+.age-count{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(110px,28vw,210px);line-height:1;
+  color:var(--rose-deep);font-variant-numeric:tabular-nums}
+
+/* cake */
+.cake-wrap{position:relative;display:flex;justify-content:center;width:100%}
+.cake-scene{height:290px;width:min(440px,92vw);position:relative;margin:6px auto 14px;filter:drop-shadow(0 16px 18px #b95c8126)}
+.cake-glow{position:absolute;width:270px;height:230px;left:50%;top:20px;transform:translateX(-50%);border-radius:50%;background:#ffc9e4;filter:blur(35px);opacity:.45}
+.cake-plate{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:330px;height:24px;border-radius:50%;background:linear-gradient(#fff,#e7b5ce);box-shadow:0 7px 0 #d796b7}
+.cake-layer{position:absolute;left:50%;transform:translateX(-50%);border-radius:18px 18px 23px 23px}
+.layer-one{width:240px;height:84px;bottom:42px;background:linear-gradient(90deg,#f4a9c9,#ffe2ef 48%,#ee9fc4)}
+.layer-two{width:190px;height:72px;bottom:122px;background:linear-gradient(90deg,#ffe1b9,#fff0d5 48%,#f4c89d)}
+.layer-three{width:142px;height:62px;bottom:185px;background:linear-gradient(90deg,#f6b7d1,#fff0f7 48%,#e9a4c4)}
+.cake-top{position:absolute;left:50%;transform:translateX(-50%);bottom:234px;width:142px;height:20px;border-radius:50%;background:#fff0f8;z-index:3}
+.sprinkles{font-size:10px;color:#d37aa5;position:absolute;top:2px;left:14px}
+.cake-scene:has(.candle:not(.out)) .cake-glow{animation:pulse 1.5s infinite}
+.candles{position:absolute;bottom:245px;left:50%;transform:translateX(-50%);display:flex;gap:14px;z-index:5}
+.candle{height:42px;width:12px;background:repeating-linear-gradient(0deg,#fff6d8 0 8px,#ef9ec4 8px 12px);border-radius:4px;position:relative}
+.wick{position:absolute;width:2px;height:6px;background:#76505f;top:-5px;left:5px}
+.flame{position:absolute;width:12px;height:19px;left:0;top:-23px;background:radial-gradient(circle at 50% 60%,#fff8b5 0 20%,#ffb544 45%,#ff795d 72%);
+  border-radius:60% 60% 60% 10%;transform:rotate(45deg);animation:flicker .5s infinite alternate;transition:opacity .25s var(--d),transform .25s var(--d)}
+.candle.out .flame{animation:none;opacity:0;transform:rotate(45deg) scale(0)}
+.smoke{position:absolute;left:3px;top:-10px;width:6px;height:6px;border-radius:50%;background:#c9b4c0;opacity:0}
+.candle.out .smoke{animation:smoke 1.8s var(--d) ease-out forwards}
+.flown-wish{position:absolute;top:30px;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;
+  font-family:'Playfair Display',serif;font-style:italic;font-size:20px;color:#a2457a;text-shadow:0 0 14px #fff;pointer-events:none;z-index:6}
+.cake-notch{position:absolute;left:50%;bottom:42px;width:58px;height:84px;margin-left:36px;background:#ffd0e3;border-radius:0 12px 12px 0;z-index:1}
+.cake-wedge{position:absolute;left:50%;bottom:42px;width:58px;height:84px;margin-left:36px;z-index:4;
+  background:linear-gradient(90deg,#f4a9c9,#ffe2ef);clip-path:polygon(0 0,100% 14%,100% 100%,0 100%);
+  animation:slice 1.2s .15s cubic-bezier(.3,.7,.3,1) forwards}
+
+/* photo frame */
+.memory-wall{position:fixed;inset:0;z-index:0;pointer-events:none}
+.top-photo-rail{position:fixed;top:0;left:0;right:0;height:72px;overflow:hidden;display:flex;align-items:center;
+  background:linear-gradient(180deg,#fff8fcf5,#ffeef7b8);border-bottom:1px solid #e19dbe40}
+.top-photo-track{display:flex;gap:10px;width:max-content;animation:drift 95s linear infinite}
+.top-photo-track img{width:68px;height:54px;flex:none;object-fit:cover;border:3px solid #fff;border-radius:10px;box-shadow:0 3px 10px #78375a20}
+.polaroid{position:fixed;top:50%;width:124px;height:150px;padding:7px 7px 24px;background:#fff;border-radius:6px;
+  box-shadow:0 12px 28px #8f43692e;transform:translateY(-50%) rotate(var(--tilt));overflow:hidden}
+.polaroid-left{left:18px}.polaroid-right{right:18px}
+.polaroid img{width:100%;height:100%;object-fit:cover;display:block;border-radius:2px}
+
+/* cards */
+.cards-screen{justify-content:flex-start;padding:10px 0 20px}
+.chances{font-size:17px;color:#b45d88;margin:6px 0}
+.chances strong{background:#fce0ed;padding:4px 13px;border-radius:20px;color:#9a376c}
+.card-hint{color:var(--muted);margin:2px 0 14px;font-size:14px}
+.card-grid{width:min(560px,100%);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.mystery-card{appearance:none;border:0;padding:0;background:transparent;cursor:pointer;aspect-ratio:3/4;perspective:900px;transition:transform .2s}
+.mystery-card:not(:disabled):hover{transform:translateY(-5px) scale(1.03)}
 .mystery-card:disabled{cursor:default}
 .card-inner{display:block;position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .75s cubic-bezier(.2,.75,.25,1)}
-.mystery-card.is-flipped .card-inner{transform:rotateY(180deg)}
-.card-back,.card-front{position:absolute;inset:0;overflow:hidden;border-radius:17px;backface-visibility:hidden;box-shadow:0 8px 20px #a94e7b25;border:3px solid #fff}
-.card-back{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:linear-gradient(145deg,#f6b6d3,#d978a8);color:#fff}
-.card-back:before{content:"";position:absolute;inset:7px;border:1px dashed #fff9;border-radius:11px}
-.card-number{position:absolute;top:10px;left:13px;font-size:12px;font-weight:800;opacity:.8}
-.card-heart{font-family:Georgia,serif;font-size:clamp(38px,7vw,62px);line-height:1;text-shadow:0 3px 8px #87365c33}
-.card-back-copy{font-size:clamp(10px,2vw,14px);font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.is-flipped .card-inner{transform:rotateY(180deg)}
+.is-opening{animation:shake .35s linear 2}
+.card-back,.card-front{position:absolute;inset:0;overflow:hidden;border-radius:16px;backface-visibility:hidden;border:3px solid #fff;box-shadow:0 8px 20px #a94e7b25}
+.card-back{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(145deg,#f6b6d3,#d978a8);color:#fff}
+.card-back:before{content:"";position:absolute;inset:7px;border:1px dashed #fff9;border-radius:10px}
+.card-number{position:absolute;top:9px;left:12px;font-size:12px;font-weight:700;opacity:.85}
+.card-heart{font-family:Georgia,serif;font-size:clamp(34px,7vw,56px);line-height:1}
+.card-back-copy{font-size:clamp(10px,2vw,13px);font-weight:700;letter-spacing:.5px}
 .card-front{transform:rotateY(180deg);background:#fff0f7;display:flex;flex-direction:column}
 .card-front img{width:100%;height:78%;object-fit:cover;min-height:0}
-.card-winner{flex:1;display:grid;place-items:center;color:#9d3f72;font-weight:900;font-size:clamp(12px,2.2vw,18px);padding:4px}
-.card-result{margin:18px auto 0;max-width:560px;background:#fff7fb;border:1px solid #f0c6da;border-radius:18px;padding:12px 20px;box-shadow:0 8px 24px #b65d8420}
-.card-result h3{font-family:'Playfair Display',serif;color:#9e4774;margin:4px 0 6px;font-size:22px}
-.card-result p{margin:4px;color:#8f5878;line-height:1.5}
-.win-modal{position:fixed;inset:0;background:#6d34534d;backdrop-filter:blur(5px);z-index:30;display:flex;align-items:center;justify-content:center;padding:18px}.win-card{max-width:430px;width:100%;background:#fff8fc;border:2px solid #f3c9dd;border-radius:26px;padding:25px;box-shadow:0 20px 60px #68355044;text-align:center}.win-card h3{font-family:'Playfair Display',serif;font-size:27px;color:#9e4774;margin:10px 0}.win-card p{line-height:1.65;color:#8f5878}.win-stars{font-size:24px}.final-letter{background:#fff0f7;border-radius:17px;padding:14px;margin:14px 0;text-align:left;border:1px dashed #e6a8c8}.final-letter h4{color:#a44778;text-align:center;margin:5px 0 10px;font-size:18px}.soft-btn{background:#f6d6e7;color:#9b4775;box-shadow:none}.confetti-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:12}.confetti-layer i{position:absolute;top:-14px;width:9px;height:14px;background:hsl(var(--hue),85%,65%);animation:confettifall 4s linear infinite;opacity:.9;border-radius:2px}.ambient{position:fixed;left:0;right:0;top:0;opacity:.18;pointer-events:none;text-align:center;color:#dc8eb6;letter-spacing:15px;font-size:22px}.birthday-app footer{text-align:center;color:#bd82a1;font-size:12px;margin-top:22px}.ride-scene{min-height:360px}@keyframes flicker{from{transform:scale(.9) rotate(38deg);opacity:.85}to{transform:scale(1.12) rotate(52deg);opacity:1}}@keyframes bob{50%{transform:translateY(-5px)}}@keyframes pulse{50%{opacity:.7;transform:scale(1.05)}}@keyframes glow{to{box-shadow:0 0 28px #ee91be}}@keyframes roadmove{to{background-position:-82px 0}}@keyframes cloudmove{50%{transform:translateX(30px)}}@keyframes float{50%{transform:translateY(-10px)}}@keyframes signmove{0%{transform:translateX(0)}100%{transform:translateX(-35px)}}@keyframes confettifall{to{transform:translateY(110vh) rotate(600deg);opacity:.2}}
+.card-winner{flex:1;display:grid;place-items:center;color:#9d3f72;font-weight:800;font-size:clamp(11px,2.2vw,16px)}
+.result-slot{min-height:92px;width:100%;display:flex;justify-content:center}
+.card-result{margin-top:14px;max-width:520px;background:#fff7fb;border:1px solid var(--line);border-radius:18px;padding:12px 20px;box-shadow:0 8px 24px #b65d8420}
+.card-result h3{font-size:21px;margin:2px 0 4px}
+.card-result p{margin:2px;color:#8f5878;line-height:1.5}
 
-@media(max-width:560px){.birthday-app{padding:25px 12px 40px}.music-toggle{top:9px;right:9px;padding:8px 11px;font-size:12px}.eyebrow{margin-top:46px}.cake-scene{transform:scale(.85);margin-top:-4px;margin-bottom:-10px}.ride-scene{height:340px}.milestone{bottom:120px}.sign{padding:5px 8px;font-size:12px}.post{height:42px}.finish{right:1%;padding:7px 9px}
+/* letter */
+.letter{width:min(100%,640px);margin:18px auto 6px;padding:clamp(20px,4vw,34px);background:linear-gradient(145deg,#fffdfd,#fff0f7);
+  border:1px solid #edc2d7;border-radius:25px;box-shadow:0 18px 48px #9f527322,inset 0 0 0 6px #fff8fb;text-align:center}
+.letter-flourish{color:#d17aa4;font-size:22px;letter-spacing:8px;margin-bottom:8px}
+.letter h3{font-size:clamp(20px,3vw,26px);margin:4px 0 14px}
+.letter-body{font-family:'Playfair Display',serif;font-size:clamp(17px,2.5vw,22px);line-height:1.7;color:#75435e;margin:0 auto 12px;min-height:5.2em}
+.caret{display:inline-block;width:2px;height:1em;background:#c65e98;margin-left:3px;vertical-align:-.12em;animation:blink 1s steps(1) infinite}
+.letter-signoff{font-style:italic;color:#bd7196;margin:6px 0 14px}
+.birthday-app footer{position:relative;z-index:2;text-align:center;color:#bd82a1;font-size:12px;margin-top:12px}
 
-  .primary-btn,.soft-btn{font-size:13px;padding:12px 16px;}
+/* motion */
+@keyframes flicker{from{transform:scale(.9) rotate(38deg);opacity:.85}to{transform:scale(1.12) rotate(52deg);opacity:1}}
+@keyframes bob{50%{transform:translateY(-5px)}}
+@keyframes pulse{50%{opacity:.7;transform:translateX(-50%) scale(1.05)}}
+@keyframes glow{to{box-shadow:0 0 28px #ee91be}}
+@keyframes drift{to{transform:translateX(-50%)}}
+@keyframes wiggle{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) translateY(-4px)}}
+@keyframes smoke{0%{opacity:.8;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-46px) scale(3)}}
+@keyframes slice{to{transform:translate(84px,10px) rotate(9deg)}}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}
+@keyframes blink{50%{opacity:0}}
 
-  .win-card{padding:18px;max-height:88vh;overflow:auto;}
-
+/* tablet: smaller polaroids */
+@media(max-width:900px){
+  .birthday-app{padding:88px 110px 34px}
+  .polaroid{width:84px;height:106px;padding:5px 5px 16px}
+  .polaroid-left{left:8px}.polaroid-right{right:8px}
 }
-@media(max-width:560px){
-  .card-grid{gap:8px;width:min(100%,420px)}
-  .card-back,.card-front{border-radius:12px;border-width:2px}
-  .card-back:before{inset:5px;border-radius:8px}
-  .card-number{top:7px;left:8px}
-  .card-winner{font-size:11px}
+/* phone: top strip only, full-width centre column */
+@media(max-width:700px){
+  .birthday-app{padding:76px 16px 24px}
+  .polaroid{display:none}
+  .top-photo-rail{height:56px}
+  .top-photo-track img{width:46px;height:38px;border-width:2px;border-radius:7px}
+  .music-toggle{top:64px;right:8px;padding:6px 10px;font-size:11px}
+  .screen{min-height:calc(100dvh - 110px)}
+  .subheading{font-size:15px}
+  .cake-scene{transform:scale(.8);margin:-14px auto -26px}
+  .primary-btn,.soft-btn{font-size:14px;padding:12px 20px}
+  .card-grid{gap:8px}
+  .card-back,.card-front{border-radius:11px;border-width:2px}
   .card-hint{font-size:12px}
+  .envelope{width:180px;height:126px}
 }
 
-@media(max-width:560px){
-  .card-grid{gap:8px;width:min(100%,420px)}
-  .card-back,.card-front{border-radius:12px;border-width:2px}
-  .card-back:before{inset:5px;border-radius:8px}
-  .card-number{top:7px;left:8px}
-  .card-winner{font-size:11px}
-  .card-hint{font-size:12px}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
-
-
-
-/* Four-sided, compact photo border */
-.memory-wall{position:fixed;z-index:1;inset:0;pointer-events:none;overflow:hidden;padding:0;}
-.memory-track{position:absolute;display:flex;gap:10px;width:max-content;height:max-content;align-items:center;}
-.memory-track img{display:block;flex:none;width:clamp(62px,7vw,92px);height:clamp(54px,6vw,76px);object-fit:cover;border:4px solid #fff;border-radius:11px;box-shadow:0 3px 0 #d995b6,0 5px 14px #9b527033;background:#f6dce9;}
-.edge-top{top:8px;left:0;animation:edgeTopRun 75s linear infinite;}
-.edge-bottom{bottom:8px;right:0;animation:edgeBottomRun 82s linear infinite;}
-.edge-left{left:8px;top:0;flex-direction:column;animation:edgeLeftRun 88s linear infinite;}
-.edge-right{right:8px;bottom:0;flex-direction:column;animation:edgeRightRun 92s linear infinite;}
-@keyframes edgeTopRun{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@keyframes edgeBottomRun{from{transform:translateX(0)}to{transform:translateX(50%)}}
-@keyframes edgeLeftRun{from{transform:translateY(0)}to{transform:translateY(-50%)}}
-@keyframes edgeRightRun{from{transform:translateY(0)}to{transform:translateY(50%)}}
-.birthday-app{padding:105px 118px 105px;min-height:100vh;}
-.screen{max-width:760px;min-height:calc(100vh - 150px);}
-.party-decor{position:fixed;z-index:2;pointer-events:none;font-size:clamp(28px,4vw,48px);filter:drop-shadow(0 5px 8px #b95c8122);opacity:.9;}
-.decor-cake{left:8%;top:22%;}
-.decor-balloons{right:8%;top:22%;font-size:clamp(30px,4vw,48px);}
-.decor-gift{left:9%;bottom:20%;}
-.decor-sparkles{right:8%;bottom:20%;font-size:clamp(22px,3vw,36px);}
-.centerpiece-letter{width:min(100%,620px);margin:24px auto 10px;padding:clamp(20px,4vw,34px);background:linear-gradient(145deg,#fffdfd,#fff0f7);border:1px solid #edc2d7;border-radius:25px;box-shadow:0 18px 48px #9f527322, inset 0 0 0 6px #fff8fb;text-align:center;}
-.centerpiece-letter .letter-flourish{color:#d17aa4;font-size:23px;letter-spacing:8px;margin-bottom:10px;}
-.centerpiece-letter h4{font-family:'Playfair Display',serif;color:#a44778;font-size:clamp(20px,3vw,27px);margin:4px 0 15px;}
-.centerpiece-letter p{font-family:'Playfair Display',serif;font-size:clamp(18px,2.5vw,23px);line-height:1.65;color:#75435e;margin:0 auto 15px;}
-.centerpiece-letter .letter-signoff{font-size:14px;color:#bd7196;margin:10px 0 18px;font-style:italic;}
-.cards-screen{padding:0 18px 30px;}
-@media(max-width:700px){
- .birthday-app{padding:92px 58px 95px;}
- .memory-track img{width:clamp(46px,13vw,66px);height:clamp(42px,11vw,58px);border-width:3px;border-radius:8px;}
- .edge-top{top:5px}.edge-bottom{bottom:5px}.edge-left{left:5px}.edge-right{right:5px}
- .party-decor{font-size:25px;opacity:.72;}
- .decor-cake{left:4%;top:18%}.decor-balloons{right:3%;top:18%}
- .decor-gift{left:4%;bottom:17%}.decor-sparkles{right:3%;bottom:17%}
- .screen{min-height:calc(100vh - 130px);}
- .cards-screen{padding:0 4px 24px;}
- .centerpiece-letter{padding:20px 16px;margin:18px auto;}
- .centerpiece-letter p{font-size:18px;line-height:1.55;}
-}
-@media(max-width:420px){
- .birthday-app{padding-left:48px;padding-right:48px;}
- .memory-track img{width:43px;height:39px;}
- .party-decor{font-size:21px;}
-}
-
-
-/* Alignment and layering fix: photos stay in the perimeter, never over content */
-.birthday-app{
-  position:relative;
-  isolation:isolate;
-  padding:clamp(88px, 9vh, 112px) clamp(74px, 9vw, 118px) clamp(88px, 9vh, 112px);
-}
-.memory-wall{
-  position:fixed;
-  z-index:0 !important;
-  inset:0;
-  pointer-events:none;
-  overflow:hidden;
-}
-.memory-track{z-index:0;}
-.screen{
-  position:relative;
-  z-index:5 !important;
-  width:100%;
-  max-width:820px;
-  margin-left:auto;
-  margin-right:auto;
-}
-.party-decor{
-  z-index:1 !important;
-}
-.music-toggle{z-index:30;}
-.cards-screen{
-  width:100%;
-  max-width:820px;
-  padding:0 12px 32px;
-}
-.card-grid{
-  margin-left:auto;
-  margin-right:auto;
-}
-.centerpiece-letter{
-  position:relative;
-  z-index:6;
-  margin-left:auto;
-  margin-right:auto;
-}
-@media(max-width:700px){
-  .birthday-app{
-    padding:82px 52px 88px;
-  }
-  .screen{
-    max-width:100%;
-  }
-  .cards-screen{padding:0 3px 24px;}
-  .party-decor{z-index:1 !important;opacity:.55;}
-}
-@media(max-width:420px){
-  .birthday-app{padding-left:44px;padding-right:44px;}
-  .card-grid{width:100%;gap:6px;}
-  .mystery-card{min-width:0;}
-}
-
-
-/* Clean centered composition: photo thumbnails are clipped to four dedicated rails */
-.birthday-app{
-  box-sizing:border-box;
-  position:relative;
-  isolation:isolate;
-  min-height:100vh;
-  width:100%;
-  padding:86px 82px 86px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-}
-.memory-wall{
-  position:fixed;
-  z-index:0;
-  inset:0;
-  overflow:hidden;
-  pointer-events:none;
-}
-.photo-rail{
-  position:absolute;
-  overflow:hidden;
-  display:block;
-  background:linear-gradient(180deg,rgba(255,247,251,.96),rgba(255,238,247,.92));
-}
-.rail-top,.rail-bottom{
-  left:0;right:0;height:68px;width:100%;
-  display:flex;align-items:center;
-  padding:5px 8px;
-}
-.rail-top{top:0;}
-.rail-bottom{bottom:0;}
-.rail-left,.rail-right{
-  top:72px;bottom:72px;width:66px;
-  display:flex;justify-content:center;
-  padding:6px 4px;
-}
-.rail-left{left:0;}
-.rail-right{right:0;}
-.memory-track{
-  display:flex;
-  flex:none;
-  gap:9px;
-  align-items:center;
-  width:max-content;
-  height:max-content;
-}
-.horizontal-track{animation:cleanPhotoRun 100s linear infinite;}
-.reverse-track{animation-direction:reverse;}
-.vertical-track{
-  flex-direction:column;
-  animation:cleanPhotoRunVertical 110s linear infinite;
-}
-.memory-track img{
-  display:block;
-  flex:none;
-  width:66px;height:54px;
-  object-fit:cover;
-  border:3px solid #fff;
-  border-radius:10px;
-  box-shadow:0 2px 8px rgba(137,65,99,.16);
-  background:#fff;
-}
-.rail-left .memory-track img,.rail-right .memory-track img{
-  width:54px;height:62px;
-}
-@keyframes cleanPhotoRun{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@keyframes cleanPhotoRunVertical{from{transform:translateY(0)}to{transform:translateY(-50%)}}
-.screen{
-  position:relative;
-  z-index:2;
-  box-sizing:border-box;
-  width:min(100%,860px);
-  max-width:860px;
-  margin:0 auto;
-  min-height:0;
-  text-align:center;
-}
-.cake-screen,.cards-screen{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-}
-.cake-screen .cake-scene{margin-left:auto;margin-right:auto;}
-.cake-screen h1,.cake-screen .eyebrow,.cake-screen .subheading,
-.cake-screen .primary-btn,.cake-screen .step-action,
-.cards-screen > *{margin-left:auto;margin-right:auto;}
-.cards-screen{width:min(100%,860px);padding:22px 20px 28px;}
-.card-grid{width:min(660px,100%);margin:14px auto 0;}
-.centerpiece-letter{
-  position:relative;
-  z-index:3;
-  width:min(100%,680px);
-  margin:18px auto;
-}
-.party-decor{display:none !important;}
-.ambient{
-  position:absolute;
-  top:8px;left:0;right:0;
-  z-index:1;
-  opacity:.14;
-  pointer-events:none;
-}
-.music-toggle{position:fixed;z-index:10;top:78px;right:14px;}
-.confetti-layer{z-index:8;}
-@media(max-width:700px){
-  .birthday-app{padding:82px 58px;}
-  .rail-top,.rail-bottom{height:58px;padding:4px;}
-  .rail-left,.rail-right{top:62px;bottom:62px;width:48px;padding:4px 2px;}
-  .memory-track{gap:6px;}
-  .memory-track img{width:54px;height:44px;border-width:2px;border-radius:8px;}
-  .rail-left .memory-track img,.rail-right .memory-track img{width:40px;height:50px;}
-  .music-toggle{top:64px;right:8px;padding:7px 10px;font-size:11px;}
-  .cards-screen{padding:14px 2px 20px;}
-  .card-grid{gap:7px;width:100%;}
-  .centerpiece-letter{padding:22px 16px;margin:12px auto;}
-}
-@media(max-width:420px){
-  .birthday-app{padding:72px 44px;}
-  .rail-top,.rail-bottom{height:52px;}
-  .rail-left,.rail-right{top:56px;bottom:56px;width:38px;}
-  .memory-track img{width:46px;height:38px;}
-  .rail-left .memory-track img,.rail-right .memory-track img{width:32px;height:42px;}
-  .music-toggle{top:58px;}
-}
-
-
-/* Final layout: centre stage stays clear; only two photos show on each side */
-.birthday-app{
-  box-sizing:border-box;
-  position:relative;
-  isolation:isolate;
-  min-height:100vh;
-  width:100%;
-  padding:36px 112px 44px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-}
-.memory-wall{
-  position:fixed;
-  inset:0;
-  z-index:0;
-  pointer-events:none;
-}
-.photo-side{
-  position:fixed;
-  top:50%;
-  transform:translateY(-50%);
-  width:82px;
-  height:150px; /* two thumbnails visible at a time */
-  overflow:hidden;
-  display:block;
-  border-radius:15px;
-  padding:4px;
-  background:rgba(255,247,251,.72);
-  box-shadow:0 5px 18px rgba(160,82,125,.08);
-}
-.photo-side-left{left:12px;}
-.photo-side-right{right:12px;}
-.side-photo-track{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:9px;
-  width:100%;
-  animation:sideMemoryMove 48s linear infinite;
-}
-.reverse-side-track{animation-direction:reverse;}
-.side-photo-track img{
-  display:block;
-  flex:none;
-  width:70px;
-  height:66px;
-  object-fit:cover;
-  border:3px solid #fff;
-  border-radius:10px;
-  box-shadow:0 3px 10px rgba(117,54,87,.14);
-}
-@keyframes sideMemoryMove{
-  from{transform:translateY(0)}
-  to{transform:translateY(-50%)}
-}
-.screen{
-  position:relative;
-  z-index:2;
-  width:min(100%,860px);
-  max-width:860px;
-  min-height:calc(100vh - 80px);
-  margin:0 auto;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-.cake-screen,.ride-invite,.cards-screen{
-  width:100%;
-  margin-left:auto;
-  margin-right:auto;
-}
-.cake-screen .cake-scene,.cake-cut-scene{
-  margin-left:auto;
-  margin-right:auto;
-}
-.cards-screen{padding:20px 12px 26px;}
-.card-grid{margin:14px auto 0;width:min(660px,100%);}
-.centerpiece-letter{
-  position:relative;
-  z-index:3;
-  width:min(100%,680px);
-  margin:18px auto;
-}
-.music-toggle{z-index:10;}
-.ambient{z-index:1;pointer-events:none;}
-.confetti-layer{z-index:12;}
-.birthday-app footer{position:relative;z-index:2;margin-top:12px;}
-@media(max-width:700px){
-  .birthday-app{padding:28px 68px 34px;}
-  .photo-side{width:58px;height:128px;padding:3px;border-radius:11px;}
-  .photo-side-left{left:5px;}
-  .photo-side-right{right:5px;}
-  .side-photo-track{gap:7px;}
-  .side-photo-track img{width:48px;height:55px;border-width:2px;border-radius:8px;}
-  .screen{min-height:calc(100vh - 65px);}
-  .cards-screen{padding:12px 0 20px;}
-  .card-grid{gap:7px;}
-  .centerpiece-letter{padding:20px 14px;margin:12px auto;}
-  .music-toggle{top:8px;right:8px;padding:8px 11px;font-size:12px;}
-}
-@media(max-width:420px){
-  .birthday-app{padding-left:54px;padding-right:54px;}
-  .photo-side{width:46px;height:112px;}
-  .photo-side-left{left:3px;}
-  .photo-side-right{right:3px;}
-  .side-photo-track img{width:38px;height:48px;}
-}
-
-
-/* Photo frame update: scrolling photo strip at top + one large rotating photo per side */
-.birthday-app{
-  padding:92px 150px 42px !important;
-  overflow-x:hidden;
-}
-.memory-wall{
-  position:fixed !important;
-  inset:0 !important;
-  z-index:0 !important;
-  pointer-events:none;
-}
-.top-photo-rail{
-  position:fixed;
-  z-index:1;
-  top:0;
-  left:0;
-  right:0;
-  height:72px;
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-  padding:6px 0;
-  background:linear-gradient(180deg,rgba(255,248,252,.96),rgba(255,238,247,.72));
-  border-bottom:1px solid rgba(225,157,190,.25);
-}
-.top-photo-track{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  width:max-content;
-  animation:topPhotoDrift 95s linear infinite;
-}
-.top-photo-track img{
-  width:68px;
-  height:54px;
-  flex:none;
-  object-fit:cover;
-  border:3px solid white;
-  border-radius:10px;
-  box-shadow:0 3px 10px rgba(120,55,90,.13);
-}
-@keyframes topPhotoDrift{
-  from{transform:translateX(0)}
-  to{transform:translateX(-50%)}
-}
-.photo-side{
-  position:fixed !important;
-  top:50% !important;
-  transform:translateY(-50%) !important;
-  width:116px !important;
-  height:158px !important;
-  padding:5px !important;
-  overflow:hidden !important;
-  border-radius:16px !important;
-  background:rgba(255,248,252,.9) !important;
-  border:1px solid rgba(231,171,199,.65);
-  box-shadow:0 8px 24px rgba(143,67,105,.13) !important;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.photo-side-left{left:14px !important;right:auto !important;}
-.photo-side-right{right:14px !important;left:auto !important;}
-.photo-side img{
-  display:block;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  border:3px solid #fff;
-  border-radius:11px;
-}
-.screen{
-  position:relative;
-  z-index:2;
-}
-.music-toggle{z-index:10;}
-.confetti-layer{z-index:12;}
-@media(max-width:850px){
-  .birthday-app{padding:88px 104px 34px !important;}
-  .photo-side{width:78px !important;height:116px !important;padding:3px !important;}
-  .photo-side-left{left:7px !important;}
-  .photo-side-right{right:7px !important;}
-  .top-photo-rail{height:62px;}
-  .top-photo-track img{width:54px;height:44px;}
-}
-@media(max-width:560px){
-  .birthday-app{padding:82px 66px 30px !important;}
-  .photo-side{width:54px !important;height:86px !important;padding:2px !important;border-radius:10px !important;}
-  .photo-side-left{left:4px !important;}
-  .photo-side-right{right:4px !important;}
-  .photo-side img{border-width:2px;border-radius:7px;}
-  .top-photo-rail{height:54px;}
-  .top-photo-track{gap:6px;}
-  .top-photo-track img{width:44px;height:36px;border-width:2px;border-radius:7px;}
-  .music-toggle{top:58px !important;right:7px !important;}
-}
-
-
-/* Mobile alignment pass: keep the centre column clear between the photo frames */
-@media (max-width: 700px) {
-  html, body, #root { width:100%; min-height:100%; margin:0; }
-  body { overflow-x:hidden; }
-  .birthday-app {
-    width:100%;
-    min-height:100svh;
-    padding:76px 66px 24px !important;
-    overflow-x:clip;
-    overflow-y:visible;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-  }
-  .top-photo-rail {
-    height:52px !important;
-    padding:3px 0 !important;
-  }
-  .top-photo-track { gap:6px !important; }
-  .top-photo-track img {
-    width:43px !important;
-    height:36px !important;
-    border-width:2px !important;
-    border-radius:7px !important;
-  }
-  .photo-side {
-    top:50% !important;
-    width:48px !important;
-    height:78px !important;
-    padding:2px !important;
-    border-radius:9px !important;
-  }
-  .photo-side-left { left:4px !important; }
-  .photo-side-right { right:4px !important; }
-  .photo-side img {
-    width:100% !important;
-    height:100% !important;
-    object-fit:cover !important;
-    border-width:2px !important;
-    border-radius:7px !important;
-  }
-  .screen {
-    width:100% !important;
-    max-width:100% !important;
-    min-height:calc(100svh - 100px) !important;
-    margin:0 auto !important;
-    padding:10px 0 18px !important;
-    justify-content:center;
-  }
-  .screen h1 { font-size:clamp(29px,8vw,42px) !important; }
-  .screen h2 { font-size:clamp(20px,5.6vw,28px) !important; line-height:1.2; }
-  .eyebrow {
-    font-size:9px !important;
-    letter-spacing:1.5px !important;
-    margin:12px 0 8px !important;
-  }
-  .subheading { font-size:13px !important; margin:8px 0 12px !important; }
-  .cake-scene {
-    width:min(330px,100%) !important;
-    transform:scale(.76) !important;
-    transform-origin:center center !important;
-    margin:0 auto -28px !important;
-  }
-  .cake-screen .cake-scene { margin-top:-8px !important; }
-  .cake-screen .primary-btn,
-  .primary-btn, .soft-btn {
-    font-size:12px !important;
-    padding:11px 15px !important;
-    max-width:100%;
-  }
-  .ride-invite { padding-top:8px !important; }
-  .cake-cut-scene {
-    width:100% !important;
-    height:245px !important;
-    margin:0 auto !important;
-    transform:none !important;
-  }
-  .cake-cut-scene .cake-scene {
-    transform:scale(.72) !important;
-    transform-origin:center top !important;
-  }
-  .knife { right:0 !important; top:34px !important; font-size:38px !important; }
-  .sparkles { font-size:20px !important; }
-  .cards-screen {
-    min-height:0 !important;
-    justify-content:flex-start !important;
-    padding:8px 0 20px !important;
-    margin-top:0 !important;
-  }
-  .cards-screen h2 { max-width:100%; margin:4px auto 7px !important; }
-  .chances { font-size:14px !important; margin:5px 0 !important; }
-  .card-hint { font-size:10px !important; line-height:1.35; margin:5px 0 9px !important; }
-  .card-grid {
-    width:100% !important;
-    max-width:100% !important;
-    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
-    gap:6px !important;
-    margin:8px auto 12px !important;
-  }
-  .mystery-card { width:100%; min-width:0; }
-  .card-back,.card-front { border-radius:9px !important; border-width:2px !important; }
-  .card-back:before { inset:4px !important; border-radius:6px !important; }
-  .card-heart { font-size:clamp(25px,8vw,38px) !important; }
-  .card-number { top:5px !important; left:6px !important; font-size:9px !important; }
-  .card-back-copy { font-size:9px !important; }
-  .card-winner { font-size:9px !important; }
-  .card-result { width:100%; padding:10px !important; }
-  .centerpiece-letter {
-    width:100% !important;
-    max-width:100% !important;
-    margin:10px auto !important;
-    padding:16px 12px !important;
-    border-radius:16px !important;
-  }
-  .centerpiece-letter h4 { font-size:17px !important; }
-  .centerpiece-letter p { font-size:13px !important; line-height:1.55 !important; }
-  .music-toggle {
-    top:57px !important;
-    right:7px !important;
-    padding:6px 9px !important;
-    font-size:10px !important;
-  }
-  .birthday-app footer {
-    width:100%;
-    font-size:10px !important;
-    margin:8px auto 0 !important;
-  }
-}
-@media (max-width: 380px) {
-  .birthday-app { padding-left:56px !important; padding-right:56px !important; }
-  .photo-side { width:42px !important; height:68px !important; }
-  .top-photo-rail { height:48px !important; }
-  .top-photo-track img { width:38px !important; height:32px !important; }
-  .screen h1 { font-size:28px !important; }
-  .cards-screen h2 { font-size:19px !important; }
-  .card-grid { gap:4px !important; }
-  .card-back-copy { font-size:8px !important; }
-}
-
-
 `;
