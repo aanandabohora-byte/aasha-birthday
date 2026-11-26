@@ -815,4 +815,144 @@ const styles = `
 }
 
 
+/* Mobile alignment pass: keep the centre column clear between the photo frames */
+@media (max-width: 700px) {
+  html, body, #root { width:100%; min-height:100%; margin:0; }
+  body { overflow-x:hidden; }
+  .birthday-app {
+    width:100%;
+    min-height:100svh;
+    padding:76px 66px 24px !important;
+    overflow-x:clip;
+    overflow-y:visible;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .top-photo-rail {
+    height:52px !important;
+    padding:3px 0 !important;
+  }
+  .top-photo-track { gap:6px !important; }
+  .top-photo-track img {
+    width:43px !important;
+    height:36px !important;
+    border-width:2px !important;
+    border-radius:7px !important;
+  }
+  .photo-side {
+    top:50% !important;
+    width:48px !important;
+    height:78px !important;
+    padding:2px !important;
+    border-radius:9px !important;
+  }
+  .photo-side-left { left:4px !important; }
+  .photo-side-right { right:4px !important; }
+  .photo-side img {
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    border-width:2px !important;
+    border-radius:7px !important;
+  }
+  .screen {
+    width:100% !important;
+    max-width:100% !important;
+    min-height:calc(100svh - 100px) !important;
+    margin:0 auto !important;
+    padding:10px 0 18px !important;
+    justify-content:center;
+  }
+  .screen h1 { font-size:clamp(29px,8vw,42px) !important; }
+  .screen h2 { font-size:clamp(20px,5.6vw,28px) !important; line-height:1.2; }
+  .eyebrow {
+    font-size:9px !important;
+    letter-spacing:1.5px !important;
+    margin:12px 0 8px !important;
+  }
+  .subheading { font-size:13px !important; margin:8px 0 12px !important; }
+  .cake-scene {
+    width:min(330px,100%) !important;
+    transform:scale(.76) !important;
+    transform-origin:center center !important;
+    margin:0 auto -28px !important;
+  }
+  .cake-screen .cake-scene { margin-top:-8px !important; }
+  .cake-screen .primary-btn,
+  .primary-btn, .soft-btn {
+    font-size:12px !important;
+    padding:11px 15px !important;
+    max-width:100%;
+  }
+  .ride-invite { padding-top:8px !important; }
+  .cake-cut-scene {
+    width:100% !important;
+    height:245px !important;
+    margin:0 auto !important;
+    transform:none !important;
+  }
+  .cake-cut-scene .cake-scene {
+    transform:scale(.72) !important;
+    transform-origin:center top !important;
+  }
+  .knife { right:0 !important; top:34px !important; font-size:38px !important; }
+  .sparkles { font-size:20px !important; }
+  .cards-screen {
+    min-height:0 !important;
+    justify-content:flex-start !important;
+    padding:8px 0 20px !important;
+    margin-top:0 !important;
+  }
+  .cards-screen h2 { max-width:100%; margin:4px auto 7px !important; }
+  .chances { font-size:14px !important; margin:5px 0 !important; }
+  .card-hint { font-size:10px !important; line-height:1.35; margin:5px 0 9px !important; }
+  .card-grid {
+    width:100% !important;
+    max-width:100% !important;
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:6px !important;
+    margin:8px auto 12px !important;
+  }
+  .mystery-card { width:100%; min-width:0; }
+  .card-back,.card-front { border-radius:9px !important; border-width:2px !important; }
+  .card-back:before { inset:4px !important; border-radius:6px !important; }
+  .card-heart { font-size:clamp(25px,8vw,38px) !important; }
+  .card-number { top:5px !important; left:6px !important; font-size:9px !important; }
+  .card-back-copy { font-size:9px !important; }
+  .card-winner { font-size:9px !important; }
+  .card-result { width:100%; padding:10px !important; }
+  .centerpiece-letter {
+    width:100% !important;
+    max-width:100% !important;
+    margin:10px auto !important;
+    padding:16px 12px !important;
+    border-radius:16px !important;
+  }
+  .centerpiece-letter h4 { font-size:17px !important; }
+  .centerpiece-letter p { font-size:13px !important; line-height:1.55 !important; }
+  .music-toggle {
+    top:57px !important;
+    right:7px !important;
+    padding:6px 9px !important;
+    font-size:10px !important;
+  }
+  .birthday-app footer {
+    width:100%;
+    font-size:10px !important;
+    margin:8px auto 0 !important;
+  }
+}
+@media (max-width: 380px) {
+  .birthday-app { padding-left:56px !important; padding-right:56px !important; }
+  .photo-side { width:42px !important; height:68px !important; }
+  .top-photo-rail { height:48px !important; }
+  .top-photo-track img { width:38px !important; height:32px !important; }
+  .screen h1 { font-size:28px !important; }
+  .cards-screen h2 { font-size:19px !important; }
+  .card-grid { gap:4px !important; }
+  .card-back-copy { font-size:8px !important; }
+}
+
+
 `;
