@@ -15,7 +15,7 @@ const CONFIG = {
   // Optional real song in /public/audio. If the file is missing, the soft synth tune plays instead.
   musicFile: 'audio/birthday-music.mp3',
   collageFrom: 21,          // finale collage uses photos 21.jpeg … 30.jpeg
-  collageTo: 30,
+  collageTo: 30,34,35,36
   collageTitle: 'Twenty-one years of you 💗',
   collageNote: 'Every one of these is my favourite. Happy birthday, love. ♡',
   tease: 'Could it be 10,000 cash, an iPhone Duo, or Aananda? 💝',
