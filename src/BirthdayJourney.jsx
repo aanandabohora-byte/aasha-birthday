@@ -1,3 +1,4 @@
+
 import React, {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 } from 'react';
@@ -5,17 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /* ───────────────────────── 1. EDIT YOUR TEXT HERE ───────────────────────── */
 const CONFIG = {
-  herName: 'Aasha',
+  herName: 'My Pie🥧',
   giftName: 'Aananda',
   age: 21,
-  photoCount: 20,           // photos 1.jpeg … 20.jpeg inside /public/photos
-  // Birthday song: plays the moment the candles are blown out (file in /public/audio, name is case-sensitive)
+  photoCount: 20,
   birthdayFile: 'audio/Birthday.mp3',
-  voiceFile: 'audio/aasha-voice.mp3',   // plays when your message pops up
-  // Optional real song in /public/audio. If the file is missing, the soft synth tune plays instead.
+  voiceFile: 'audio/aasha-voice.mp3',
   musicFile: 'audio/birthday-music.mp3',
-  collageFrom: 21,          // finale collage uses photos 21.jpeg … 30.jpeg
-  collageTo: 30,34,35,36
   collageTitle: 'Twenty-one years of you 💗',
   collageNote: 'Every one of these is my favourite. Happy birthday, love. ♡',
   tease: 'Could it be 10,000 cash, an iPhone Duo, or Aananda? 💝',
@@ -32,22 +29,28 @@ const CONFIG = {
 };
 
 const BASE = import.meta.env.BASE_URL;
+
 const photoFiles = Array.from(
   { length: CONFIG.photoCount },
   (_, i) => `${BASE}photos/${i + 1}.jpeg`,
 );
-const collageFiles = Array.from(
-  { length: CONFIG.collageTo - CONFIG.collageFrom + 1 },
-  (_, i) => `${BASE}photos/${CONFIG.collageFrom + i}.jpeg`,
-);
+
+// Finale collage: photos 21–30 and 34–36 (13 photos total)
+const collageFiles = [
+  ...Array.from({ length: 10 }, (_, i) => `${BASE}photos/${i + 21}.jpeg`),
+  ...[34, 35, 36].map((n) => `${BASE}photos/${n}.jpeg`),
+];
+
 // Photos shown when the 1st, 2nd and 3rd card are flipped
 const cardPhotos = [31, 32, 33].map((n) => `${BASE}photos/${n}.jpeg`);
+
 const hideBroken = (e) => { e.currentTarget.style.visibility = 'hidden'; };
+
 const reduceMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ───────────────────────── 2. CANVAS CONFETTI (no DOM spam) ───────────────────────── */
+/* ───────────────────────── 2. CANVAS CONFETTI ───────────────────────── */
 const COLORS = ['#ec83b7', '#c65e98', '#ffd1e6', '#ffc46b', '#fff3c4', '#9ad9c1', '#b7a4ff'];
 
 const Confetti = forwardRef(function Confetti(_, ref) {
@@ -58,63 +61,108 @@ const Confetti = forwardRef(function Confetti(_, ref) {
   const loop = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
+
     const ctx = c.getContext('2d');
     ctx.clearRect(0, 0, c.width, c.height);
+
     const dpr = window.devicePixelRatio || 1;
-    parts.current = parts.current.filter((p) => p.y < c.height / dpr + 40 && p.life > 0);
+
+    parts.current = parts.current.filter(
+      (p) => p.y < c.height / dpr + 40 && p.life > 0
+    );
+
     parts.current.forEach((p) => {
-      p.vy += 0.22; p.vx *= 0.992; p.x += p.vx; p.y += p.vy;
-      p.rot += p.vr; p.life -= 1;
+      p.vy += 0.22;
+      p.vx *= 0.992;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life -= 1;
+
       ctx.save();
       ctx.translate(p.x * dpr, p.y * dpr);
       ctx.rotate(p.rot);
       ctx.fillStyle = p.color;
       ctx.globalAlpha = Math.min(1, p.life / 40);
+
       if (p.shape === 'heart') {
-        ctx.font = `${p.size * 2.2 * dpr}px serif`; ctx.fillText('♥', 0, 0);
+        ctx.font = `${p.size * 2.2 * dpr}px serif`;
+        ctx.fillText('♥', 0, 0);
       } else if (p.shape === 'dot') {
-        ctx.beginPath(); ctx.arc(0, 0, p.size * 0.5 * dpr, 0, 7); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.5 * dpr, 0, 7);
+        ctx.fill();
       } else {
-        ctx.fillRect(-p.size * dpr / 2, -p.size * dpr / 3, p.size * dpr, p.size * 0.6 * dpr);
+        ctx.fillRect(
+          -p.size * dpr / 2,
+          -p.size * dpr / 3,
+          p.size * dpr,
+          p.size * 0.6 * dpr
+        );
       }
+
       ctx.restore();
     });
+
     raf.current = parts.current.length ? requestAnimationFrame(loop) : 0;
   }, []);
 
   useEffect(() => {
     const resize = () => {
-      const c = canvasRef.current; if (!c) return;
+      const c = canvasRef.current;
+      if (!c) return;
+
       const dpr = window.devicePixelRatio || 1;
-      c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+      c.width = innerWidth * dpr;
+      c.height = innerHeight * dpr;
     };
+
     resize();
     addEventListener('resize', resize);
-    return () => { removeEventListener('resize', resize); cancelAnimationFrame(raf.current); };
+
+    return () => {
+      removeEventListener('resize', resize);
+      cancelAnimationFrame(raf.current);
+    };
   }, []);
 
   useImperativeHandle(ref, () => ({
-    // two "party cannons" from the bottom corners + a soft shower from the top
     fire(count = 90) {
       if (reduceMotion()) return;
-      const W = innerWidth, H = innerHeight;
+
+      const W = innerWidth;
+      const H = innerHeight;
+
       const mk = (x, y, vx, vy) => ({
-        x, y, vx, vy, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
-        size: 7 + Math.random() * 8, life: 140 + Math.random() * 80,
+        x, y, vx, vy,
+        rot: Math.random() * 6,
+        vr: (Math.random() - 0.5) * 0.3,
+        size: 7 + Math.random() * 8,
+        life: 140 + Math.random() * 80,
         color: COLORS[(Math.random() * COLORS.length) | 0],
         shape: ['rect', 'rect', 'dot', 'heart'][(Math.random() * 4) | 0],
       });
+
       for (let i = 0; i < count; i++) {
         const left = i % 2 === 0;
+
         parts.current.push(mk(
-          left ? 0 : W, H,
+          left ? 0 : W,
+          H,
           (left ? 1 : -1) * (3 + Math.random() * 7),
           -(11 + Math.random() * 9),
         ));
       }
+
       for (let i = 0; i < count / 3; i++) {
-        parts.current.push(mk(Math.random() * W, -20, (Math.random() - 0.5) * 2, 1 + Math.random() * 2));
+        parts.current.push(mk(
+          Math.random() * W,
+          -20,
+          (Math.random() - 0.5) * 2,
+          1 + Math.random() * 2
+        ));
       }
+
       if (!raf.current) raf.current = requestAnimationFrame(loop);
     },
   }), [loop]);
@@ -125,43 +173,76 @@ const Confetti = forwardRef(function Confetti(_, ref) {
 /* ───────────────────────── 3. SMALL HELPERS ───────────────────────── */
 function useTypewriter(text, active, speed = 42) {
   const [out, setOut] = useState('');
+
   useEffect(() => {
-    if (!active) { setOut(''); return undefined; }
-    if (reduceMotion()) { setOut(text); return undefined; }
+    if (!active) {
+      setOut('');
+      return undefined;
+    }
+
+    if (reduceMotion()) {
+      setOut(text);
+      return undefined;
+    }
+
     let i = 0;
+
     const t = setInterval(() => {
-      i += 1; setOut(text.slice(0, i));
+      i += 1;
+      setOut(text.slice(0, i));
+
       if (i >= text.length) clearInterval(t);
     }, speed);
+
     return () => clearInterval(t);
   }, [text, active, speed]);
+
   return out;
 }
 
-// Listens to the microphone; calls onBlow when a real "puff" is heard.
+// Listens to the microphone; calls onBlow when a real puff is heard.
 async function listenForBlow(onBlow) {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const AC = window.AudioContext || window.webkitAudioContext;
   const ctx = new AC();
   const analyser = ctx.createAnalyser();
+
   analyser.fftSize = 512;
   ctx.createMediaStreamSource(stream).connect(analyser);
+
   const buf = new Uint8Array(analyser.fftSize);
-  let loud = 0; let raf = 0;
+  let loud = 0;
+  let raf = 0;
+
   const stop = () => {
     cancelAnimationFrame(raf);
     stream.getTracks().forEach((t) => t.stop());
     ctx.close().catch(() => {});
   };
+
   const tick = () => {
     analyser.getByteTimeDomainData(buf);
+
     let sum = 0;
-    for (const v of buf) { const d = (v - 128) / 128; sum += d * d; }
+
+    for (const v of buf) {
+      const d = (v - 128) / 128;
+      sum += d * d;
+    }
+
     const rms = Math.sqrt(sum / buf.length);
+
     loud = rms > 0.2 ? loud + 1 : Math.max(0, loud - 1);
-    if (loud > 12) { stop(); onBlow(); return; }
+
+    if (loud > 12) {
+      stop();
+      onBlow();
+      return;
+    }
+
     raf = requestAnimationFrame(tick);
   };
+
   tick();
   return stop;
 }
@@ -171,48 +252,89 @@ function Cake({ candlesOut = false, cut = false }) {
   return (
     <div className={`cake-scene ${cut ? 'cake-is-cut' : ''}`} role="img" aria-label="Birthday cake">
       <div className="cake-glow" />
+
       <div className="candles">
         {[0, 1, 2, 3, 4].map((n) => (
-          <div className={`candle ${candlesOut ? 'out' : ''}`} style={{ '--d': `${n * 0.14}s` }} key={n}>
-            <span className="flame" /><span className="smoke" /><span className="wick" />
+          <div
+            className={`candle ${candlesOut ? 'out' : ''}`}
+            style={{ '--d': `${n * 0.14}s` }}
+            key={n}
+          >
+            <span className="flame" />
+            <span className="smoke" />
+            <span className="wick" />
           </div>
         ))}
       </div>
-      <div className="cake-top"><span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span></div>
+
+      <div className="cake-top">
+        <span className="sprinkles">✦ · ♥ · ✦ · ♥ · ✦</span>
+      </div>
+
       <div className="cake-layer layer-one" />
       <div className="cake-layer layer-two" />
       <div className="cake-layer layer-three" />
-      {cut && <><div className="cake-notch" /><div className="cake-wedge" /></>}
+
+      {cut && (
+        <>
+          <div className="cake-notch" />
+          <div className="cake-wedge" />
+        </>
+      )}
+
       <div className="cake-plate" />
     </div>
   );
 }
 
-/* ───────────────────────── 5. PHOTO FRAME (top strip + two rotating polaroids) ───────────────────────── */
+/* ───────────────────────── 5. PHOTO FRAME ───────────────────────── */
 function PhotoMarquee() {
   const [i, setI] = useState(0);
+
   useEffect(() => {
-    const t = setInterval(() => setI((c) => (c + 1) % photoFiles.length), 3200);
+    const t = setInterval(
+      () => setI((c) => (c + 1) % photoFiles.length),
+      3200
+    );
+
     return () => clearInterval(t);
   }, []);
+
   const left = photoFiles[i];
   const right = photoFiles[(i + 10) % photoFiles.length];
+
   return (
     <div className="memory-wall" aria-hidden="true">
       <div className="top-photo-rail">
         <div className="top-photo-track">
           {[...photoFiles, ...photoFiles].map((src, k) => (
-            <img key={k} src={src} alt="" loading="lazy" onError={hideBroken} />
+            <img
+              key={k}
+              src={src}
+              alt=""
+              loading="lazy"
+              onError={hideBroken}
+            />
           ))}
         </div>
       </div>
+
       {[['left', left, -5], ['right', right, 5]].map(([side, src, tilt]) => (
-        <div key={side} className={`polaroid polaroid-${side}`} style={{ '--tilt': `${tilt}deg` }}>
+        <div
+          key={side}
+          className={`polaroid polaroid-${side}`}
+          style={{ '--tilt': `${tilt}deg` }}
+        >
           <AnimatePresence mode="wait">
             <motion.img
-              key={src} src={src} alt="" onError={hideBroken}
-              initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }} transition={{ duration: 0.4 }}
+              key={src}
+              src={src}
+              alt=""
+              onError={hideBroken}
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
             />
           </AnimatePresence>
         </div>
@@ -221,42 +343,71 @@ function PhotoMarquee() {
   );
 }
 
-/* ───────────────────────── 5b. FINALE: photos drop onto a pinboard one by one ───────────────────────── */
+/* ───────────────────────── 5b. FINALE COLLAGE ───────────────────────── */
 function CollageFinale({ fire, onReplay, onVoice, voicePlaying }) {
   const [shown, setShown] = useState(0);
-  const tilts = useMemo(() => collageFiles.map((_, i) => ((i * 53) % 13) - 6), []);
+
+  const tilts = useMemo(
+    () => collageFiles.map((_, i) => ((i * 53) % 13) - 6),
+    []
+  );
+
   const done = shown >= collageFiles.length;
 
   useEffect(() => {
-    if (done) { fire(170); return undefined; }
-    const t = setTimeout(() => setShown((s) => s + 1), reduceMotion() ? 0 : 320);
+    if (done) {
+      fire(170);
+      return undefined;
+    }
+
+    const t = setTimeout(
+      () => setShown((s) => s + 1),
+      reduceMotion() ? 0 : 320
+    );
+
     return () => clearTimeout(t);
   }, [shown, done, fire]);
 
   return (
     <>
       <h2 className="finale-title">{CONFIG.collageTitle}</h2>
+
       <div className="collage">
         {collageFiles.map((src, i) => (
           <motion.figure
-            key={src} className="collage-item"
+            key={src}
+            className="collage-item"
             initial={{ opacity: 0, y: -80, scale: 1.35, rotate: 0 }}
             animate={i < shown
               ? { opacity: 1, y: 0, scale: 1, rotate: tilts[i] }
               : { opacity: 0, y: -80, scale: 1.35, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 180, damping: 16 }}>
+            transition={{
+              type: 'spring',
+              stiffness: 180,
+              damping: 16
+            }}
+          >
             <img src={src} alt="" onError={hideBroken} />
           </motion.figure>
         ))}
       </div>
+
       {done && (
-        <motion.div className="finale-end" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          className="finale-end"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <p className="finale-note">{CONFIG.collageNote}</p>
+
           <div className="btn-row">
             <button type="button" className="primary-btn" onClick={onVoice}>
               {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
             </button>
-            <button type="button" className="soft-btn" onClick={onReplay}>Celebrate again ↻</button>
+
+            <button type="button" className="soft-btn" onClick={onReplay}>
+              Celebrate again ↻
+            </button>
           </div>
         </motion.div>
       )}
@@ -266,20 +417,20 @@ function CollageFinale({ fire, onReplay, onVoice, voicePlaying }) {
 
 /* ───────────────────────── 6. MAIN APP ───────────────────────── */
 export default function BirthdayJourney() {
-  const [step, setStep] = useState(0);            // 0 intro · 1 cake · 2 cut · 3 cards
-  const [phase, setPhase] = useState('closed');   // intro: closed → count
+  const [step, setStep] = useState(0);
+  const [phase, setPhase] = useState('closed');
   const [age, setAge] = useState(0);
   const [wish, setWish] = useState('');
   const [flownWish, setFlownWish] = useState('');
   const [candlesOut, setCandlesOut] = useState(false);
   const [cakeCut, setCakeCut] = useState(false);
-  const [mic, setMic] = useState('idle');         // idle | listening | denied
+  const [mic, setMic] = useState('idle');
   const [spins, setSpins] = useState(0);
   const [selected, setSelected] = useState({});
   const [opening, setOpening] = useState(null);
   const [music, setMusic] = useState(true);
   const [soundStarted, setSoundStarted] = useState(false);
-  const [bgOn, setBgOn] = useState(false);          // background music allowed (after the birthday song)
+  const [bgOn, setBgOn] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [voicePlaying, setVoicePlaying] = useState(false);
 
@@ -290,53 +441,94 @@ export default function BirthdayJourney() {
   const musicFileOk = useRef(true);
   const backingRef = useRef(null);
   const stopMicRef = useRef(null);
+
   const fire = useCallback((n) => confetti.current?.fire(n), []);
 
-  /* ---- soft synth backing track (same melody as before, now cleaned up on unmount) ---- */
+  /* ---- soft synth backing track ---- */
   const stopBacking = useCallback(() => {
     const b = backingRef.current;
     if (!b) return;
-    if (b.file) musicRef.current?.pause();
-    else { try { clearInterval(b.timer); b.ctx.close(); } catch { /* ignore */ } }
+
+    if (b.file) {
+      musicRef.current?.pause();
+    } else {
+      try {
+        clearInterval(b.timer);
+        b.ctx.close();
+      } catch {
+        /* ignore */
+      }
+    }
+
     backingRef.current = null;
   }, []);
 
   const startSynth = useCallback(() => {
     if (backingRef.current) return;
+
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       const ctx = new AC();
-      const master = ctx.createGain(); master.gain.value = 0.12; master.connect(ctx.destination);
+      const master = ctx.createGain();
+
+      master.gain.value = 0.12;
+      master.connect(ctx.destination);
+
       const chords = [
-        [261.63, 329.63, 392.0, 493.88], [196.0, 246.94, 293.66, 392.0],
-        [220.0, 261.63, 329.63, 440.0], [174.61, 220.0, 261.63, 349.23],
+        [261.63, 329.63, 392.0, 493.88],
+        [196.0, 246.94, 293.66, 392.0],
+        [220.0, 261.63, 329.63, 440.0],
+        [174.61, 220.0, 261.63, 349.23],
       ];
+
       let n = 0;
+
       const play = () => {
         const f = chords[Math.floor(n / 4) % 4][n % 4];
-        const o = ctx.createOscillator(); const g = ctx.createGain();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
         const t = ctx.currentTime;
-        o.type = 'sine'; o.frequency.value = f;
+
+        o.type = 'sine';
+        o.frequency.value = f;
+
         g.gain.setValueAtTime(0.0001, t);
         g.gain.exponentialRampToValueAtTime(0.035, t + 0.06);
         g.gain.exponentialRampToValueAtTime(0.0001, t + 0.72);
-        o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.75);
+
+        o.connect(g);
+        g.connect(master);
+        o.start(t);
+        o.stop(t + 0.75);
+
         n = (n + 1) % 16;
       };
+
       play();
-      backingRef.current = { ctx, timer: setInterval(play, 520) };
-    } catch (err) { console.warn('Background music unavailable:', err); }
+
+      backingRef.current = {
+        ctx,
+        timer: setInterval(play, 520)
+      };
+    } catch (err) {
+      console.warn('Background music unavailable:', err);
+    }
   }, []);
 
-  // Prefer the real song; fall back to the synth tune if the file is missing or blocked.
+  // Prefer the real song; fall back to the synth tune.
   const startBacking = useCallback(() => {
     if (backingRef.current) return;
+
     const a = musicRef.current;
+
     if (a && musicFileOk.current) {
       a.volume = 0.4;
       backingRef.current = { file: true };
+
       a.play().catch(() => {
-        backingRef.current = null; musicFileOk.current = false; startSynth();
+        backingRef.current = null;
+        musicFileOk.current = false;
+        startSynth();
       });
     } else {
       startSynth();
@@ -345,7 +537,9 @@ export default function BirthdayJourney() {
 
   useEffect(() => {
     if (!music) {
-      birthdayRef.current?.pause(); voiceRef.current?.pause(); stopBacking();
+      birthdayRef.current?.pause();
+      voiceRef.current?.pause();
+      stopBacking();
     } else if (bgOn) {
       startBacking();
     } else if (soundStarted) {
@@ -353,58 +547,105 @@ export default function BirthdayJourney() {
     }
   }, [music, bgOn, soundStarted, startBacking, stopBacking]);
 
-  // Background tune also starts when the card game begins, even if the song was skipped.
-  useEffect(() => { if (step >= 3) setBgOn(true); }, [step]);
+  // Background tune also starts when the card game begins.
+  useEffect(() => {
+    if (step >= 3) setBgOn(true);
+  }, [step]);
 
-  useEffect(() => () => { stopBacking(); stopMicRef.current?.(); }, [stopBacking]);
+  useEffect(() => () => {
+    stopBacking();
+    stopMicRef.current?.();
+  }, [stopBacking]);
 
   /* ---- intro: open the letter, count up to her age ---- */
-  function openLetter() { setPhase('count'); fire(40); }
+  function openLetter() {
+    setPhase('count');
+    fire(40);
+  }
+
   useEffect(() => {
     if (phase !== 'count') return undefined;
-    let n = 0; let next;
+
+    let n = 0;
+    let next;
+
     const t = setInterval(() => {
-      n += 1; setAge(n);
+      n += 1;
+      setAge(n);
+
       if (n >= CONFIG.age) {
-        clearInterval(t); fire(130);
+        clearInterval(t);
+        fire(130);
         next = setTimeout(() => setStep(1), 1700);
       }
     }, 95);
-    return () => { clearInterval(t); clearTimeout(next); };
+
+    return () => {
+      clearInterval(t);
+      clearTimeout(next);
+    };
   }, [phase]);
 
   /* ---- candles ---- */
   function blow() {
     if (candlesOut) return;
-    stopMicRef.current?.(); stopMicRef.current = null; setMic('idle');
+
+    stopMicRef.current?.();
+    stopMicRef.current = null;
+
+    setMic('idle');
     setFlownWish(wish.trim());
-    setCandlesOut(true); setSoundStarted(true); fire(110);
+    setCandlesOut(true);
+    setSoundStarted(true);
+    fire(110);
+
     if (music) {
       const b = birthdayRef.current;
-      if (b) { b.currentTime = 0; b.play().catch(() => setBgOn(true)); } else setBgOn(true);
+
+      if (b) {
+        b.currentTime = 0;
+        b.play().catch(() => setBgOn(true));
+      } else {
+        setBgOn(true);
+      }
     }
   }
+
   async function blowWithMic() {
     if (mic === 'listening') return;
+
     try {
       setMic('listening');
       stopMicRef.current = await listenForBlow(blow);
-    } catch { setMic('denied'); }
+    } catch {
+      setMic('denied');
+    }
   }
 
   function cutCake() {
     if (cakeCut) return;
-    setCakeCut(true); fire(110);
+
+    setCakeCut(true);
+    fire(110);
+
     setTimeout(() => setStep(2), 1500);
   }
 
   /* ---- mystery cards ---- */
   function chooseCard(index) {
     if (opening !== null || selected[index] || spins >= 3) return;
+
     setOpening(index);
+
     setTimeout(() => {
-      const image = cardPhotos[Object.keys(selected).length] || cardPhotos[0];
-      setSelected((p) => ({ ...p, [index]: { image } }));
+      const image =
+        cardPhotos[Object.keys(selected).length] || cardPhotos[0];
+
+      setSelected((p) => ({
+        ...p,
+        [index]: { image }
+      }));
+
       setSpins((s) => s + 1);
       setOpening(null);
       fire(spins === 2 ? 150 : 60);
@@ -412,28 +653,51 @@ export default function BirthdayJourney() {
   }
 
   function reset() {
-    setStep(0); setPhase('closed'); setAge(0); setWish(''); setFlownWish('');
-    setCandlesOut(false); setCakeCut(false); setShowMessage(false); setSpins(0); setSelected({}); setOpening(null);
+    setStep(0);
+    setPhase('closed');
+    setAge(0);
+    setWish('');
+    setFlownWish('');
+    setCandlesOut(false);
+    setCakeCut(false);
+    setShowMessage(false);
+    setSpins(0);
+    setSelected({});
+    setOpening(null);
   }
 
   function toggleVoice() {
     const v = voiceRef.current;
     if (!v) return;
-    if (!v.paused) { v.pause(); return; }
+
+    if (!v.paused) {
+      v.pause();
+      return;
+    }
+
     v.currentTime = 0;
     v.play().catch(() => {});
   }
 
-  // After the 3rd card flips, the birthday message pops up and your voice plays.
+  // After the 3rd card flips, the birthday message pops up.
   useEffect(() => {
     if (spins !== 3) return undefined;
+
     const t = setTimeout(() => setShowMessage(true), 1500);
+
     return () => clearTimeout(t);
   }, [spins]);
+
   useEffect(() => {
     if (!showMessage || !music) return;
+
     const v = voiceRef.current;
-    if (v) { v.currentTime = 0; v.play().catch(() => {}); }
+
+    if (v) {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMessage]);
 
@@ -443,25 +707,51 @@ export default function BirthdayJourney() {
   return (
     <main className={`birthday-app ${step === 4 ? 'is-finale' : ''}`}>
       <style>{styles}</style>
+
       <Confetti ref={confetti} />
+
       <audio
-        ref={voiceRef} src={`${BASE}${CONFIG.voiceFile}`} preload="auto"
-        onPlay={() => { setVoicePlaying(true); if (musicRef.current) musicRef.current.volume = 0.12; }}
-        onPause={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
-        onEnded={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
+        ref={voiceRef}
+        src={`${BASE}${CONFIG.voiceFile}`}
+        preload="auto"
+        onPlay={() => {
+          setVoicePlaying(true);
+          if (musicRef.current) musicRef.current.volume = 0.12;
+        }}
+        onPause={() => {
+          setVoicePlaying(false);
+          if (musicRef.current) musicRef.current.volume = 0.4;
+        }}
+        onEnded={() => {
+          setVoicePlaying(false);
+          if (musicRef.current) musicRef.current.volume = 0.4;
+        }}
       />
+
       <audio
-        ref={birthdayRef} src={`${BASE}${CONFIG.birthdayFile}`} preload="auto"
-        onEnded={() => setBgOn(true)} onError={() => setBgOn(true)}
+        ref={birthdayRef}
+        src={`${BASE}${CONFIG.birthdayFile}`}
+        preload="auto"
+        onEnded={() => setBgOn(true)}
+        onError={() => setBgOn(true)}
       />
+
       <audio
-        ref={musicRef} src={`${BASE}${CONFIG.musicFile}`} loop preload="auto"
-        onError={() => { musicFileOk.current = false; }}
+        ref={musicRef}
+        src={`${BASE}${CONFIG.musicFile}`}
+        loop
+        preload="auto"
+        onError={() => {
+          musicFileOk.current = false;
+        }}
       />
+
       {step !== 4 && <PhotoMarquee />}
 
       <button
-        type="button" className="music-toggle" aria-pressed={music}
+        type="button"
+        className="music-toggle"
+        aria-pressed={music}
         onClick={() => setMusic((v) => !v)}
       >
         {music ? '♫ Music on' : '♫ Music off'}
@@ -470,14 +760,27 @@ export default function BirthdayJourney() {
       <AnimatePresence mode="wait">
         {/* ── STEP 0 · A letter arrives ── */}
         {step === 0 && (
-          <motion.section className="screen" key="intro"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+          <motion.section
+            className="screen"
+            key="intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
             {phase === 'closed' ? (
               <>
                 <p className="eyebrow">Psst… {CONFIG.herName}</p>
-                <button type="button" className="envelope" onClick={openLetter} aria-label="Open your birthday letter">
-                  <span className="env-flap" /><span className="env-heart">💌</span>
+
+                <button
+                  type="button"
+                  className="envelope"
+                  onClick={openLetter}
+                  aria-label="Open your birthday letter"
+                >
+                  <span className="env-flap" />
+                  <span className="env-heart">💌</span>
                 </button>
+
                 <p className="subheading">Tap the letter. It's for you.</p>
               </>
             ) : (
@@ -492,21 +795,32 @@ export default function BirthdayJourney() {
 
         {/* ── STEP 1 · Candles ── */}
         {step === 1 && (
-          <motion.section className="screen" key="cake"
-            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+          <motion.section
+            className="screen"
+            key="cake"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
             <h1>Happy Birthday, {CONFIG.herName}! <span>🎂</span></h1>
+
             <p className="subheading">
-              {candlesOut ? 'Wish made. Keep it safe in your heart. ✨' : 'Make a wish, birthday girl…'}
+              {candlesOut
+                ? 'Wish made. Keep it safe in your heart. ✨'
+                : 'Make a wish, birthday girl…'}
             </p>
 
             <div className="cake-wrap">
               <Cake candlesOut={candlesOut} />
+
               <AnimatePresence>
                 {candlesOut && flownWish && (
-                  <motion.p className="flown-wish"
+                  <motion.p
+                    className="flown-wish"
                     initial={{ opacity: 0, y: 0, scale: 0.9 }}
                     animate={{ opacity: [0, 1, 1, 0], y: -190, scale: 1.05 }}
-                    transition={{ duration: 4.2, ease: 'easeOut' }}>
+                    transition={{ duration: 4.2, ease: 'easeOut' }}
+                  >
                     ✦ {flownWish} ✦
                   </motion.p>
                 )}
@@ -517,19 +831,46 @@ export default function BirthdayJourney() {
               <div className="stack">
                 <label className="wish-field">
                   <span>Whisper your wish (it stays on your screen only)</span>
-                  <input value={wish} maxLength={60} onChange={(e) => setWish(e.target.value)}
-                    placeholder="I wish…" />
+                  <input
+                    value={wish}
+                    maxLength={60}
+                    onChange={(e) => setWish(e.target.value)}
+                    placeholder="I wish…"
+                  />
                 </label>
-                <button type="button" className="primary-btn" onClick={blow}>💨 Blow the candles</button>
-                <button type="button" className="text-btn" onClick={blowWithMic} disabled={mic === 'listening'}>
+
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={blow}
+                >
+                  💨 Blow the candles
+                </button>
+
+                <button
+                  type="button"
+                  className="text-btn"
+                  onClick={blowWithMic}
+                  disabled={mic === 'listening'}
+                >
                   {mic === 'listening' && '🎤 Listening… blow into your phone'}
                   {mic === 'denied' && '🎤 Mic blocked. Tap the button above instead'}
                   {mic === 'idle' && '🎤 Or blow for real into your microphone'}
                 </button>
               </div>
             ) : (
-              <motion.div className="stack" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                <button type="button" className="primary-btn" onClick={cutCake}>🍰 Cut the cake</button>
+              <motion.div
+                className="stack"
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={cutCake}
+                >
+                  🍰 Cut the cake
+                </button>
               </motion.div>
             )}
           </motion.section>
@@ -537,12 +878,25 @@ export default function BirthdayJourney() {
 
         {/* ── STEP 2 · Cake cut ── */}
         {step === 2 && (
-          <motion.section className="screen" key="cut"
-            initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-            <div className="cake-wrap"><Cake candlesOut cut /></div>
+          <motion.section
+            className="screen"
+            key="cut"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="cake-wrap">
+              <Cake candlesOut cut />
+            </div>
+
             <h2>Sweetness shared is sweetness doubled. 💗</h2>
             <p className="subheading">Your surprise is waiting…</p>
-            <button type="button" className="primary-btn glow-btn" onClick={() => setStep(3)}>
+
+            <button
+              type="button"
+              className="primary-btn glow-btn"
+              onClick={() => setStep(3)}
+            >
               🎁 Reveal my surprise
             </button>
           </motion.section>
@@ -550,33 +904,59 @@ export default function BirthdayJourney() {
 
         {/* ── STEP 3 · Mystery cards ── */}
         {step === 3 && (
-          <motion.section className="screen cards-screen" key="cards"
-            initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+          <motion.section
+            className="screen cards-screen"
+            key="cards"
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+          >
             <h2>Pick a card for your surprise! 🎁</h2>
-            <p className="chances">Chances left: <strong>{3 - spins}</strong></p>
+
+            <p className="chances">
+              Chances left: <strong>{3 - spins}</strong>
+            </p>
+
             <p className="card-hint">{CONFIG.tease}</p>
 
             <div className="card-grid">
               {Array.from({ length: 9 }, (_, index) => {
                 const chosen = selected[index];
                 const isOpening = opening === index;
+
                 return (
-                  <button type="button" key={index}
+                  <button
+                    type="button"
+                    key={index}
                     className={`mystery-card ${chosen ? 'is-flipped' : ''} ${isOpening ? 'is-opening' : ''}`}
                     onClick={() => chooseCard(index)}
                     disabled={!!chosen || spins >= 3 || opening !== null}
-                    aria-label={chosen ? `Card ${index + 1}: ${CONFIG.giftName}` : `Card ${index + 1}`}>
+                    aria-label={
+                      chosen
+                        ? `Card ${index + 1}: ${CONFIG.giftName}`
+                        : `Card ${index + 1}`
+                    }
+                  >
                     <span className="card-inner">
                       <span className="card-back">
                         <span className="card-number">{index + 1}</span>
                         <span className="card-heart">{isOpening ? '?' : '♡'}</span>
-                        <span className="card-back-copy">{isOpening ? 'Opening…' : 'Choose me'}</span>
+                        <span className="card-back-copy">
+                          {isOpening ? 'Opening…' : 'Choose me'}
+                        </span>
                       </span>
+
                       <span className="card-front">
                         {chosen && (
                           <>
-                            <img src={chosen.image} alt="" onError={hideBroken} />
-                            <span className="card-winner">{CONFIG.giftName} 💗</span>
+                            <img
+                              src={chosen.image}
+                              alt=""
+                              onError={hideBroken}
+                            />
+                            <span className="card-winner">
+                              {CONFIG.giftName} 💗
+                            </span>
                           </>
                         )}
                       </span>
@@ -588,8 +968,12 @@ export default function BirthdayJourney() {
 
             <div aria-live="polite" className="result-slot">
               {lastReveal && spins < 3 && (
-                <motion.div key={spins} className="card-result"
-                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  key={spins}
+                  className="card-result"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <h3>You found {CONFIG.giftName}! 💗</h3>
                   <p>{lastReveal}</p>
                 </motion.div>
@@ -597,8 +981,13 @@ export default function BirthdayJourney() {
             </div>
 
             {spins === 3 && !showMessage && (
-              <motion.button type="button" className="primary-btn glow-btn"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowMessage(true)}>
+              <motion.button
+                type="button"
+                className="primary-btn glow-btn"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={() => setShowMessage(true)}
+              >
                 💌 Open my message
               </motion.button>
             )}
@@ -607,34 +996,83 @@ export default function BirthdayJourney() {
 
         {/* ── STEP 4 · Memory collage finale ── */}
         {step === 4 && (
-          <motion.section className="screen finale-screen" key="finale"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <CollageFinale fire={fire} onReplay={reset} onVoice={toggleVoice} voicePlaying={voicePlaying} />
+          <motion.section
+            className="screen finale-screen"
+            key="finale"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <CollageFinale
+              fire={fire}
+              onReplay={reset}
+              onVoice={toggleVoice}
+              voicePlaying={voicePlaying}
+            />
           </motion.section>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showMessage && (
-          <motion.div className="msg-overlay" role="dialog" aria-modal="true" aria-labelledby="msg-title"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="letter msg-card"
-              initial={{ opacity: 0, y: 30, scale: 0.88 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', stiffness: 160, damping: 18 }}>
-              <button type="button" className="msg-close" aria-label="Close message"
-                onClick={() => setShowMessage(false)}>✕</button>
+          <motion.div
+            className="msg-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="msg-title"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="letter msg-card"
+              initial={{ opacity: 0, y: 30, scale: 0.88 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 160, damping: 18 }}
+            >
+              <button
+                type="button"
+                className="msg-close"
+                aria-label="Close message"
+                onClick={() => setShowMessage(false)}
+              >
+                ✕
+              </button>
+
               <div className="letter-flourish">♡ ✦ ♡</div>
+
               <h3 id="msg-title">{CONFIG.letterTitle}</h3>
-              <p className="letter-body">{letter}<i className="caret" /></p>
+
+              <p className="letter-body">
+                {letter}
+                <i className="caret" />
+              </p>
+
               {letter.length >= CONFIG.letter.length && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
                   <div className="letter-signoff">{CONFIG.signoff}</div>
+
                   <div className="btn-row">
-                    <button type="button" className="primary-btn"
-                      onClick={() => { setShowMessage(false); setStep(4); }}>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      onClick={() => {
+                        setShowMessage(false);
+                        setStep(4);
+                      }}
+                    >
                       📸 See our memories
                     </button>
-                    <button type="button" className="soft-btn" onClick={toggleVoice}>
+
+                    <button
+                      type="button"
+                      className="soft-btn"
+                      onClick={toggleVoice}
+                    >
                       {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
                     </button>
                   </div>
@@ -820,6 +1258,7 @@ button{font-family:inherit}
   .polaroid{width:84px;height:106px;padding:5px 5px 16px}
   .polaroid-left{left:8px}.polaroid-right{right:8px}
 }
+
 /* phone: top strip only, full-width centre column */
 @media(max-width:700px){
   .birthday-app{padding:76px 16px 24px}
