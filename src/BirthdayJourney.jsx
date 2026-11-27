@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /* ───────────────────────── 1. EDIT YOUR TEXT HERE ───────────────────────── */
 const CONFIG = {
-  herName: 'My love',
+  herName: 'Aasha',
   giftName: 'Aananda',
   age: 21,
   photoCount: 20,           // photos 1.jpeg … 20.jpeg inside /public/photos
@@ -40,6 +40,8 @@ const collageFiles = Array.from(
   { length: CONFIG.collageTo - CONFIG.collageFrom + 1 },
   (_, i) => `${BASE}photos/${CONFIG.collageFrom + i}.jpeg`,
 );
+// Photos shown when the 1st, 2nd and 3rd card are flipped
+const cardPhotos = [31, 32, 33].map((n) => `${BASE}photos/${n}.jpeg`);
 const hideBroken = (e) => { e.currentTarget.style.visibility = 'hidden'; };
 const reduceMotion = () =>
   typeof window !== 'undefined' &&
@@ -401,10 +403,7 @@ export default function BirthdayJourney() {
     if (opening !== null || selected[index] || spins >= 3) return;
     setOpening(index);
     setTimeout(() => {
-      const used = Object.values(selected).map((s) => s.image);
-      const free = photoFiles.filter((s) => !used.includes(s));
-      const pool = free.length ? free : photoFiles;
-      const image = pool[(Math.random() * pool.length) | 0];
+      const image = cardPhotos[Object.keys(selected).length] || cardPhotos[0];
       setSelected((p) => ({ ...p, [index]: { image } }));
       setSpins((s) => s + 1);
       setOpening(null);
