@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /* ───────────────────────── 1. EDIT YOUR TEXT HERE ───────────────────────── */
 const CONFIG = {
-  herName: 'Aasha',
+  herName: 'My love',
   giftName: 'Aananda',
   age: 21,
   photoCount: 20,           // photos 1.jpeg … 20.jpeg inside /public/photos
