@@ -9,7 +9,9 @@ const CONFIG = {
   giftName: 'Aananda',
   age: 21,
   photoCount: 20,           // photos 1.jpeg … 20.jpeg inside /public/photos
-  voiceFile: 'audio/aasha-voice.mp3',
+  // Birthday song: plays the moment the candles are blown out (file in /public/audio, name is case-sensitive)
+  birthdayFile: 'audio/Birthday.mp3',
+  voiceFile: 'audio/aasha-voice.mp3',   // plays when your message pops up
   // Optional real song in /public/audio. If the file is missing, the soft synth tune plays instead.
   musicFile: 'audio/birthday-music.mp3',
   collageFrom: 21,          // finale collage uses photos 21.jpeg … 30.jpeg
@@ -275,11 +277,14 @@ export default function BirthdayJourney() {
   const [opening, setOpening] = useState(null);
   const [music, setMusic] = useState(true);
   const [soundStarted, setSoundStarted] = useState(false);
+  const [bgOn, setBgOn] = useState(false);          // background music allowed (after the birthday song)
+  const [showMessage, setShowMessage] = useState(false);
   const [voicePlaying, setVoicePlaying] = useState(false);
 
   const confetti = useRef(null);
   const voiceRef = useRef(null);
   const musicRef = useRef(null);
+  const birthdayRef = useRef(null);
   const musicFileOk = useRef(true);
   const backingRef = useRef(null);
   const stopMicRef = useRef(null);
@@ -337,9 +342,17 @@ export default function BirthdayJourney() {
   }, [startSynth]);
 
   useEffect(() => {
-    if (!music) { voiceRef.current?.pause(); stopBacking(); }
-    else if (soundStarted) { voiceRef.current?.play().catch(() => {}); startBacking(); }
-  }, [music, soundStarted, startBacking, stopBacking]);
+    if (!music) {
+      birthdayRef.current?.pause(); voiceRef.current?.pause(); stopBacking();
+    } else if (bgOn) {
+      startBacking();
+    } else if (soundStarted) {
+      birthdayRef.current?.play().catch(() => setBgOn(true));
+    }
+  }, [music, bgOn, soundStarted, startBacking, stopBacking]);
+
+  // Background tune also starts when the card game begins, even if the song was skipped.
+  useEffect(() => { if (step >= 3) setBgOn(true); }, [step]);
 
   useEffect(() => () => { stopBacking(); stopMicRef.current?.(); }, [stopBacking]);
 
@@ -364,9 +377,9 @@ export default function BirthdayJourney() {
     stopMicRef.current?.(); stopMicRef.current = null; setMic('idle');
     setFlownWish(wish.trim());
     setCandlesOut(true); setSoundStarted(true); fire(110);
-    if (music && voiceRef.current) {
-      voiceRef.current.currentTime = 0;
-      voiceRef.current.play().catch(() => {});
+    if (music) {
+      const b = birthdayRef.current;
+      if (b) { b.currentTime = 0; b.play().catch(() => setBgOn(true)); } else setBgOn(true);
     }
   }
   async function blowWithMic() {
@@ -401,7 +414,7 @@ export default function BirthdayJourney() {
 
   function reset() {
     setStep(0); setPhase('closed'); setAge(0); setWish(''); setFlownWish('');
-    setCandlesOut(false); setCakeCut(false); setSpins(0); setSelected({}); setOpening(null);
+    setCandlesOut(false); setCakeCut(false); setShowMessage(false); setSpins(0); setSelected({}); setOpening(null);
   }
 
   function toggleVoice() {
@@ -412,7 +425,20 @@ export default function BirthdayJourney() {
     v.play().catch(() => {});
   }
 
-  const letter = useTypewriter(CONFIG.letter, spins === 3, 38);
+  // After the 3rd card flips, the birthday message pops up and your voice plays.
+  useEffect(() => {
+    if (spins !== 3) return undefined;
+    const t = setTimeout(() => setShowMessage(true), 1500);
+    return () => clearTimeout(t);
+  }, [spins]);
+  useEffect(() => {
+    if (!showMessage || !music) return;
+    const v = voiceRef.current;
+    if (v) { v.currentTime = 0; v.play().catch(() => {}); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMessage]);
+
+  const letter = useTypewriter(CONFIG.letter, showMessage, 38);
   const lastReveal = spins > 0 ? CONFIG.reveals[spins - 1] : '';
 
   return (
@@ -424,6 +450,10 @@ export default function BirthdayJourney() {
         onPlay={() => { setVoicePlaying(true); if (musicRef.current) musicRef.current.volume = 0.12; }}
         onPause={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
         onEnded={() => { setVoicePlaying(false); if (musicRef.current) musicRef.current.volume = 0.4; }}
+      />
+      <audio
+        ref={birthdayRef} src={`${BASE}${CONFIG.birthdayFile}`} preload="auto"
+        onEnded={() => setBgOn(true)} onError={() => setBgOn(true)}
       />
       <audio
         ref={musicRef} src={`${BASE}${CONFIG.musicFile}`} loop preload="auto"
@@ -567,27 +597,11 @@ export default function BirthdayJourney() {
               )}
             </div>
 
-            {spins === 3 && (
-              <motion.div className="letter" initial={{ opacity: 0, y: 18, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.6 }}>
-                <div className="letter-flourish">♡ ✦ ♡</div>
-                <h3>{CONFIG.letterTitle}</h3>
-                <p className="letter-body">{letter}<i className="caret" /></p>
-                {letter.length >= CONFIG.letter.length && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <div className="letter-signoff">{CONFIG.signoff}</div>
-                    <div className="btn-row">
-                      <button type="button" className="primary-btn" onClick={() => setStep(4)}>
-                        📸 See our memories
-                      </button>
-                      <button type="button" className="soft-btn" onClick={toggleVoice}>
-                        {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
-                      </button>
-                    </div>
-                    <button type="button" className="text-btn" onClick={reset}>Celebrate again ↻</button>
-                  </motion.div>
-                )}
-              </motion.div>
+            {spins === 3 && !showMessage && (
+              <motion.button type="button" className="primary-btn glow-btn"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowMessage(true)}>
+                💌 Open my message
+              </motion.button>
             )}
           </motion.section>
         )}
@@ -598,6 +612,37 @@ export default function BirthdayJourney() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <CollageFinale fire={fire} onReplay={reset} onVoice={toggleVoice} voicePlaying={voicePlaying} />
           </motion.section>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showMessage && (
+          <motion.div className="msg-overlay" role="dialog" aria-modal="true" aria-labelledby="msg-title"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="letter msg-card"
+              initial={{ opacity: 0, y: 30, scale: 0.88 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', stiffness: 160, damping: 18 }}>
+              <button type="button" className="msg-close" aria-label="Close message"
+                onClick={() => setShowMessage(false)}>✕</button>
+              <div className="letter-flourish">♡ ✦ ♡</div>
+              <h3 id="msg-title">{CONFIG.letterTitle}</h3>
+              <p className="letter-body">{letter}<i className="caret" /></p>
+              {letter.length >= CONFIG.letter.length && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <div className="letter-signoff">{CONFIG.signoff}</div>
+                  <div className="btn-row">
+                    <button type="button" className="primary-btn"
+                      onClick={() => { setShowMessage(false); setStep(4); }}>
+                      📸 See our memories
+                    </button>
+                    <button type="button" className="soft-btn" onClick={toggleVoice}>
+                      {voicePlaying ? '⏸ Pause my voice' : '🎙️ Hear my voice'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -751,6 +796,12 @@ button{font-family:inherit}
   .collage{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 8px}
   .collage-item{padding:4px 4px 12px}
 }
+
+/* message popup */
+.msg-overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:18px;
+  background:#6d34538c;backdrop-filter:blur(6px);overflow-y:auto}
+.msg-card{position:relative;margin:auto;max-height:calc(100dvh - 36px);overflow-y:auto}
+.msg-close{position:absolute;top:10px;right:12px;width:34px;height:34px;border:0;border-radius:50%;background:#f6d6e7;color:#8a3d66;font-size:15px;cursor:pointer}
 
 /* motion */
 @keyframes flicker{from{transform:scale(.9) rotate(38deg);opacity:.85}to{transform:scale(1.12) rotate(52deg);opacity:1}}
